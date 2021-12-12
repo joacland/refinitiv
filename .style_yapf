@@ -1,0 +1,59 @@
+# .style.yapf
+#
+# DESCRIPTION
+#     Configuration file for the python formatter yapf.
+#
+#     This configuration is based on the generic
+#     configuration published on GitHub.
+#
+# AUTHOR
+#    Joachim Landstrom
+#
+# VERSION
+#     1.0
+#
+# SEE ALSO
+#     https://github.com/google/yapf
+#     https://github.com/google/yapf#knobs
+#     https://gist.github.com/krnd
+#
+
+
+[style]
+################### COMMON #################################
+
+# Which predefined style this style is based on.
+BASED_ON_STYLE = facebook
+
+################### SPECIFIC ################################
+# see 'yapf --style=facebook --style-help' for all knobs avail.
+
+# The column limit
+COLUMN_LIMIT = 80
+
+# Put closing brackets on a separate line, indented, if the bracketed
+# expression can't fit in a single line. Applies to all kinds of brackets,
+# including function definitions and calls. For example:
+#
+#   config = {
+#       'key1': 'value1',
+#       'key2': 'value2',
+#       }        # <--- this bracket is indented and on a separate line
+#
+#   time_series = self.remote_client.query_entity_counters(
+#       entity='dev3246.region1',
+#       key='dns.query_latency_tcp',
+#       transform=Transformation.AVERAGE(window=timedelta(seconds=60)),
+#       start_ts=now()-timedelta(days=3),
+#       end_ts=now(),
+#       )        # <--- this bracket is indented and on a separate line
+INDENT_CLOSING_BRACKETS = True
+
+# Allow splits before the dictionary value.
+ALLOW_SPLIT_BEFORE_DICT_VALUE = False
+
+# Insert a space between the ending comma and closing bracket of a list, etc.
+SPACE_BETWEEN_ENDING_COMMA_AND_CLOSING_BRACKET = False
+
+# The penalty for splitting right after the opening bracket.
+SPLIT_PENALTY_AFTER_OPENING_BRACKET = 0
