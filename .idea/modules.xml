@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/eikon.iml" filepath="$PROJECT_DIR$/.idea/eikon.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/refinitiv.iml" filepath="$PROJECT_DIR$/.idea/refinitiv.iml" />
     </modules>
   </component>
 </project>

@@ -26,8 +26,6 @@ therefore replaces the RIC key with the Organization's Permanent ID.
 
 """
 
-__updated__ = "2021-12-06 10:00:00"
-
 #  Copyright (c) 2021. All right reserved.
 
 # IMPORT PACKAGES
@@ -35,6 +33,7 @@ import csv
 import pathlib as pl
 
 import pandas as pd
+
 
 # import sys
 
@@ -56,7 +55,7 @@ def create_source_file_stem(prepend, rep_freq, year):
 
     fid = (
         prepend + "_" + str(rep_freq.lower()) + "_" + str(year) + ".csv"
-        )  # Name of source file
+    )  # Name of source file
     return fid
 
 
@@ -94,8 +93,8 @@ def create_out_file(stem, header, **kwargs):
     if pl.Path.exists(stem):
         pl.Path.unlink(stem)
     # Header to output stem?
-    with open(stem, "w", encoding="UTF8", newline="") as f:
-        writer = csv.DictWriter(f, delimiter="\t", fieldnames=header)
+    with open(stem, "w", encoding="UTF8", newline="") as fl:
+        writer = csv.DictWriter(fl, delimiter="\t", fieldnames=header)
         writer.writeheader()
 
 
@@ -123,7 +122,7 @@ def save_to_csv_file(df, file, **kwargs):  # TODO Add kwargs
         encoding="utf-8",
         index=False,
         header=False,
-        )
+    )
 
 
 def save_to_parquet_file(df, file, compression, **kwargs):  # TODO Add kwarg
@@ -154,7 +153,13 @@ def save_to_parquet_file(df, file, compression, **kwargs):  # TODO Add kwarg
 
 def read_csv_file(file):
     """Reads a tab-delimited csv-file and returns a Pandas dataframe."""
-    df = pd.read_csv(file, delimiter="\t", na_values=" ", low_memory=False)
+    df = pd.read_csv(
+        file,
+        delimiter="\t",
+        na_values=" ",
+        dtype={"OrganizationID": "str"},
+        low_memory=False,
+    )
     return df
 
 
@@ -179,25 +184,34 @@ def clean_data(in_df, idx, col_vars):
     col_vars: A list of column(s). NaN in all there cols lead to drop of the row.
     """
 
-    # Drop if NaN in and of the index columns
-    df = in_df.dropna(how="any", subset=idx)
+    # Drop if NaN in any of the index columns
+    # print(f"Row pre cleaning are {len(in_df)}")
+    # df = in_df.dropna(how="any", subset=idx[0:1])
+    # print(f" -No na idx[0], rows remain: {len(df)}")
+    df = in_df.dropna(how="any", subset=idx[1:2])
+    # print(f" -No na idx[1], rows remain: {len(df)}")
     # Drop if NaN in all variable columns
     df = df.dropna(how="all", subset=col_vars)
+    # print(f" -No na other, rows remain: {len(df)}")
+
     # Drop of there exists duplicates of the index columns
-    df = df.drop_duplicates(subset=idx, keep="first")
+    # df = df.drop_duplicates(subset=idx, keep="first")
+    # Drop of there exists duplicates
+    df = df.drop_duplicates(keep="first")
+    # print(f" -No dups, rows remain: {len(df)}")
     return df
 
 
 if __name__ == "__main__":
     # YEAR RANGE
     first_year: int = 2000
-    last_year: int = 2021
+    last_year: int = 2022
 
     # PROJECT DIRECTORY
-    proj_path = pl.Path.home().joinpath("Documents", "research", "eikon")
+    proj_path = pl.Path.home().joinpath("Documents", "research", "refinitiv")
 
     # NAME OF SOURCE AND OUTPUT DIRECTORY (INSIDE PROJECT DIRECTORY FROM ABOVE)
-    SOURCE_DIR = "raw2"
+    SOURCE_DIR = "raw"
     OUT_DIR = "out"
 
     # FILE NAME PREFIX
@@ -207,50 +221,59 @@ if __name__ == "__main__":
     OUT_FILE_NAME = FILE_PREFIX + "_raw.parquet.snappy"  # Name of raw out file
     out_path = proj_path.joinpath(
         OUT_DIR, OUT_FILE_NAME
-        )  # Out path for raw out
+    )  # Out path for raw out
 
     OUT_FILE_NAME_FINAL = (
         FILE_PREFIX + "_OrganizationID.parquet.brotli"
-        )  # Name of final out file
+    )  # Name of final out file
     out_path_final = proj_path.joinpath(
         OUT_DIR, OUT_FILE_NAME_FINAL
-        )  # Out path for final data
+    )  # Out path for final data
 
     # INTERIM FREQUENCY
-    # in_freq = ["fq", "fq"]
-    in_freq = ["fq"]
+    in_freq = ["fq", "fs"]
+    freq_cnt = 0
+    # in_freq=["fq"]
+
+    # Date format for the PeriodEndDate (column 2)
+    D_FORMAT = "%Y-%m-%d"  # E.g. 2020-12-31
 
     # PROCESS START
     print("Collating announcement dates into a single file")
     for my_year in range(first_year, last_year + 1):
         print("   - Year: " + str(my_year))
         for report_type in in_freq:
+            freq_cnt += 1
             # file name convention anndats_act_fs_2005.csv
-            SOURCE_FILE_NAME = create_source_file_stem(
+            source_file_name = create_source_file_stem(
                 FILE_PREFIX, report_type, my_year
-                )
-            source_path = create_source_path(SOURCE_DIR, SOURCE_FILE_NAME)
+            )
+            source_path = create_source_path(SOURCE_DIR, source_file_name)
             dta = read_csv_file(source_path)
             my_header = list(dta.columns.values)
             my_idx = list(my_header[0:2])
             my_vars = list(my_header[2:7])
+            # print(f"Reading file {source_path}, which has {len(dta)} rows.")
             # Parse PeriodEndDate into datetime object
-            dta[my_header[1:2]] = pd.to_datetime(dta[my_header[1:2]], utc=False)
+            dta[my_idx[1]] = pd.to_datetime(dta[my_idx[1]], format=D_FORMAT)
             for ts in my_vars:
                 # Parse timestamp into datetime object, and standardize tz to UTC
                 dta[ts] = pd.to_datetime(dta[ts], utc=True)
                 # Convert timestamp to tz 'CET'
                 dta[ts] = dta[ts].dt.tz_convert("CET")
             dta = dta.sort_values(by=my_idx)
+            # print(f"   -File has {len(dta)} rows.")
             dta = clean_data(dta, my_idx, my_vars)
+            # print(f"   --Cleaned file has {len(dta)} rows.")
             # save_to_csv_file(dta, out_path)
-            if my_year == 2000 and report_type == "fs":
+            if my_year == first_year and freq_cnt == 1:
                 # Delete any existing file and save new
                 save_to_parquet_file(dta, out_path, compression="snappy")
             else:
                 # Append data to file
                 old_dta = pd.read_parquet(out_path)
                 dta = old_dta.append(dta)
+                # print(f"   --Old data has {len(old_dta)} rows while new dta has {len(dta)} rows.")
                 save_to_parquet_file(dta, out_path, compression="snappy")
 
     print("Finalizing raw dataset")
@@ -267,21 +290,23 @@ if __name__ == "__main__":
     # Sort
     dta = dta.sort_values(by=my_idx)
     # Drop duplicates
-    dta = dta.drop_duplicates(
-        subset=[
-            "OrganizationID",
-            "PeriodEndDate",
-            "OriginalAnnouncementDate",
-            ],
-        keep="first",
-        )
-    # # Set outfile names and save
+    # dta = dta.drop_duplicates(
+    #     subset=[
+    #         "OrganizationID",
+    #         "PeriodEndDate",
+    #         "OriginalAnnouncementDate",
+    #     ],
+    #     keep="first",
+    # )
+    # Set outfile names and save
     # my_header = list(dta.columns.values)
-    # out_file_name2 = "OrganizationID_cleaned.csv"  # Name of out file
+    # out_file_name2 = "test.csv"  # Name of out file
     # out_path2 = proj_path.joinpath("out", out_file_name2)
-    # create_out_file(out_path2, ["OrganizationID"])
-    # id_df = id_df.sort_values(by=["OrganizationID"])
-    # save_to_csv_file(id_df["OrganizationID"], out_path2)
+    # create_out_file(out_path2, my_header)
+    # dta = dta.sort_values(
+    #     by=["OrganizationID", "PeriodEndDate", "OriginalAnnouncementDate"]
+    # )
+    # save_to_csv_file(dta, out_path2)
 
     save_to_parquet_file(dta, out_path_final, compression="brotli")
     print("File " + "--" + str(out_path_final) + "--" + " is saved.")
