@@ -31,6 +31,9 @@ therefore replaces the RIC key with the Organization's Permanent ID.
 # IMPORT PACKAGES
 import csv
 import pathlib as pl
+import pyarrow as pa
+import pyarrow.parquet as pq
+from datetime import datetime, timezone
 
 import pandas as pd
 
@@ -186,17 +189,20 @@ def clean_data(in_df, idx, col_vars):
 
     # Drop if NaN in any of the index columns
     # print(f"Row pre cleaning are {len(in_df)}")
-    # df = in_df.dropna(how="any", subset=idx[0:1])
-    # print(f" -No na idx[0], rows remain: {len(df)}")
-    df = in_df.dropna(how="any", subset=idx[1:2])
+    df = in_df.dropna(how="any", subset=idx)
+    # print(f" -No na idx, rows remain: {len(df)}")
+    # df = in_df.dropna(how="any", subset=idx[1:2])
     # print(f" -No na idx[1], rows remain: {len(df)}")
     # Drop if NaN in all variable columns
     df = df.dropna(how="all", subset=col_vars)
     # print(f" -No na other, rows remain: {len(df)}")
 
     # Drop of there exists duplicates of the index columns
+
     # df = df.drop_duplicates(subset=idx, keep="first")
     # Drop of there exists duplicates
+    idx_all = idx + col_vars
+    df = df.sort_values(by=idx_all, na_position="last")
     df = df.drop_duplicates(keep="first")
     # print(f" -No dups, rows remain: {len(df)}")
     return df
@@ -250,6 +256,7 @@ if __name__ == "__main__":
             )
             source_path = create_source_path(SOURCE_DIR, source_file_name)
             dta = read_csv_file(source_path)
+            # print(list(dta.columns))
             my_header = list(dta.columns.values)
             my_idx = list(my_header[0:2])
             my_vars = list(my_header[2:7])
@@ -264,6 +271,7 @@ if __name__ == "__main__":
             dta = dta.sort_values(by=my_idx)
             # print(f"   -File has {len(dta)} rows.")
             dta = clean_data(dta, my_idx, my_vars)
+            # print(list(dta.columns))
             # print(f"   --Cleaned file has {len(dta)} rows.")
             # save_to_csv_file(dta, out_path)
             if my_year == first_year and freq_cnt == 1:
@@ -274,30 +282,39 @@ if __name__ == "__main__":
                 old_dta = pd.read_parquet(out_path)
                 dta = old_dta.append(dta)
                 # print(f"   --Old data has {len(old_dta)} rows while new dta has {len(dta)} rows.")
+                # print(list(dta.columns))
                 save_to_parquet_file(dta, out_path, compression="snappy")
 
     print("Finalizing raw dataset")
     dta = pd.read_parquet(out_path)
+    # print(dta.dtypes)
     my_idx = list(my_header[0:2])
     my_vars = list(my_header[2:7])
     dta = dta.sort_values(by=my_idx)
     dta = clean_data(dta, my_idx, my_vars)
+
+    # Strip timzone from timestamps. Timestamps are already set to CET.
+    # Stata can't interpret Python timestamps with time zone info.
+    for ts in my_vars:
+        dta[ts] = dta[ts].apply(lambda x: datetime.replace(x, tzinfo=None))
+
     save_to_parquet_file(dta, out_path, compression="snappy")
 
     # Read in data
     print("Post-processing the raw dataset into a final dataset")
     dta = pd.read_parquet(out_path)
     # Sort
-    dta = dta.sort_values(by=my_idx)
+    dta = dta.sort_values(by=my_header, na_position="last")
     # Drop duplicates
-    # dta = dta.drop_duplicates(
-    #     subset=[
-    #         "OrganizationID",
-    #         "PeriodEndDate",
-    #         "OriginalAnnouncementDate",
-    #     ],
-    #     keep="first",
-    # )
+    dta = dta.drop_duplicates(
+        subset=[
+            "OrganizationID",
+            "PeriodEndDate",
+            "OriginalAnnouncementDate",
+        ],
+        keep="first",
+    )
+
     # Set outfile names and save
     # my_header = list(dta.columns.values)
     # out_file_name2 = "test.csv"  # Name of out file
@@ -309,6 +326,22 @@ if __name__ == "__main__":
     # save_to_csv_file(dta, out_path2)
 
     save_to_parquet_file(dta, out_path_final, compression="brotli")
+    out_path = proj_path.joinpath("out", "anndats_act_OrganizationID.dta")
+    dta.to_stata(
+        out_path,
+        write_index=False,
+        data_label="Refinitiv's information about interim announcement dates",
+        variable_labels={
+            "OrganizationID": "TR.OrganizationID in Refinitiv",
+            "PeriodEndDate": "TR.F.PeriodEndDate (Fiscal Period End Date)",
+            "OriginalAnnouncementDate": "TR.OriginalAnnouncementDate",
+            "EPSActReportDate": "TR.EPSActReportDate (IBES report date for EPS [main var])",
+            "EPSFRActReportDate": "TR.EPSFRActReportDate (IBES report date for EPS Reported [not main var])",
+            "EBITActReportDate": "TR.EBITActReportDate. IBES report date for EBIT [not main var]",
+            "EBITDAActReportDate": "TR.EBITDAActReportDate.IBES report date for EBITDA [not main var]",
+        },
+        version=119,
+    )
     print("File " + "--" + str(out_path_final) + "--" + " is saved.")
     print("It has " + str(len(dta)) + " rows, and has the following header:")
     print(my_header)
