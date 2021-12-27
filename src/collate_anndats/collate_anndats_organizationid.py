@@ -263,6 +263,8 @@ if __name__ == "__main__":
             # print(f"Reading file {source_path}, which has {len(dta)} rows.")
             # Parse PeriodEndDate into datetime object
             dta[my_idx[1]] = pd.to_datetime(dta[my_idx[1]], format=D_FORMAT)
+            # Strip the time from the generated datetime object
+            dta[my_idx[1]] = dta[my_idx[1]].dt.date
             for ts in my_vars:
                 # Parse timestamp into datetime object, and standardize tz to UTC
                 dta[ts] = pd.to_datetime(dta[ts], utc=True)
