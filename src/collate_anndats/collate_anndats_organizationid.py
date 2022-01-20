@@ -101,7 +101,16 @@ def create_out_file(stem, header, **kwargs):
         writer.writeheader()
 
 
-def save_to_csv_file(df, file, **kwargs):  # TODO Add kwargs
+def save_to_csv_file(
+    df,
+    file,
+    mode="a",
+    sep="\t",
+    encoding="utf-8",
+    index=False,
+    header=False,
+    **kwargs
+):
     """
     Enter two arguments. Appends Pandas dataframe to tab separated csv-file.
 
@@ -111,24 +120,24 @@ def save_to_csv_file(df, file, **kwargs):  # TODO Add kwargs
 
     file: The name to which the dataframe is to be appended.
 
-    Return: An appended, tab-separated, csv-file having UTF-8 encoding,
-    no index, and no header.
+    Return: An appended, as default, a tab-separated, csv-file having UTF-8
+    encoding, no index, and no header.
 
     Notes:
-    **kwargs not yet implemented.
     """
 
     df.to_csv(
         file,
-        mode="a",
-        sep="\t",
-        encoding="utf-8",
-        index=False,
-        header=False,
+        mode=mode,
+        sep=sep,
+        encoding=encoding,
+        index=index,
+        header=header,
+        **kwargs
     )
 
 
-def save_to_parquet_file(df, file, compression, **kwargs):  # TODO Add kwarg
+def save_to_parquet_file(df, file, compression="snappy", **kwargs):
     """
     Enter three arguments and save a dataframe as an Apache Parquet database.
 
@@ -139,29 +148,34 @@ def save_to_parquet_file(df, file, compression, **kwargs):  # TODO Add kwarg
     file: The file name of the Apache Parquet database.
 
     compression: The database's compression. Available compressions are
-    ‘snappy’, ‘gzip’, ‘brotli’, or none.
+    "snappy", "gzip", "brotli", or none. Default is "snappy"
 
-    Return: Returns an Apache Parquet database with a speficic compression.
+    Return: Returns an Apache Parquet database with a chosen compression.
 
     Notes:
-    **kwargs not yet implemented.
-    The function requires either 'pyarrow', or 'fastparquet'.
+    The function requires either "pyarrow", or "fastparquet".
+    "Pathlib" is also needed.
     """
     # Drop existing file
     if pl.Path.exists(file):
         pl.Path.unlink(file)
     # Save DB
-    df.to_parquet(file, compression=compression)
+    df.to_parquet(file, compression=compression, **kwargs)
 
 
-def read_csv_file(file):
-    """Reads a tab-delimited csv-file and returns a Pandas dataframe."""
+def read_csv_file(
+    file, delimiter="\t", na_values=" ", dtype=str, low_memory=False, **kwargs
+):
+    """
+    Reads, as default, a tab-delimited csv-file and returns a Pandas dataframe.
+    """
     df = pd.read_csv(
         file,
-        delimiter="\t",
-        na_values=" ",
-        dtype={"OrganizationID": "str"},
-        low_memory=False,
+        delimiter=delimiter,
+        na_values=na_values,
+        dtype=dtype,
+        low_memory=low_memory,
+        **kwargs
     )
     return df
 
@@ -255,16 +269,20 @@ if __name__ == "__main__":
                 FILE_PREFIX, report_type, my_year
             )
             source_path = create_source_path(SOURCE_DIR, source_file_name)
-            dta = read_csv_file(source_path)
+            dta = read_csv_file(source_path, parse_dates=["PeriodEndDate"])
+            # Add column with report frequency (Q)uarterly or (S)emi-annual
+            if report_type == "fs":
+                dta["rp"] = "S"  # Semi-annual report frequency
+            else:
+                dta["rp"] = "Q"  # Quarterly report freq is default
+
             # print(list(dta.columns))
             my_header = list(dta.columns.values)
             my_idx = list(my_header[0:2])
             my_vars = list(my_header[2:7])
             # print(f"Reading file {source_path}, which has {len(dta)} rows.")
-            # Parse PeriodEndDate into datetime object
-            dta[my_idx[1]] = pd.to_datetime(dta[my_idx[1]], format=D_FORMAT)
-            # Strip the time from the generated datetime object
-            dta[my_idx[1]] = dta[my_idx[1]].dt.date
+            # Parse PeriodEndDate into datetime object (now obsolete)
+            # dta[my_idx[1]] = pd.to_datetime(dta[my_idx[1]], format=D_FORMAT)
             for ts in my_vars:
                 # Parse timestamp into datetime object, and standardize tz to UTC
                 dta[ts] = pd.to_datetime(dta[ts], utc=True)
@@ -341,6 +359,10 @@ if __name__ == "__main__":
             "EPSFRActReportDate": "TR.EPSFRActReportDate (IBES report date for EPS Reported [not main var])",
             "EBITActReportDate": "TR.EBITActReportDate. IBES report date for EBIT [not main var]",
             "EBITDAActReportDate": "TR.EBITDAActReportDate.IBES report date for EBITDA [not main var]",
+            "rp": "Report frequency. (Q)uarterly/(S)emi-annual",
+        },
+        convert_dates={
+            "PeriodEndDate": "td"
         },
         version=119,
     )
