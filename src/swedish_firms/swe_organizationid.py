@@ -37,7 +37,6 @@ if __name__ == "__main__":
     # RAW FILE NAME
     RAW_MRK = pl.Path.home().joinpath("box", "data", "ric_organizationid.csv")
 
-
     # OUT FILE NAME OF DATA
     OUT_PATH_MRK = PROJ_PATH.joinpath(
         OUT_DIR, "swe_mrk_organizationid.csv"
@@ -54,14 +53,19 @@ if __name__ == "__main__":
         sel = f"\.{mkr}"
         partial = df[df.RIC.str.contains(sel, regex=True)]
         swe_mrk = swe_mrk.append(partial)
-    swe_mrk =swe_mrk[["OrganizationID"]]
+    swe_mrk = swe_mrk[["OrganizationID"]]
     swe_mrk = swe_mrk.drop_duplicates()
     swe_mrk = swe_mrk.sort_values(by="OrganizationID", na_position="last")
     own.save_to_csv_file(swe_mrk, OUT_PATH_MRK)
 
     # Get OrganizationID for Swedish firms
     # (public & private, active or non-active)
-    files = ["active_public", "active_private", "inactive_public", "inactive_private"]
+    files = [
+        "active_public",
+        "active_private",
+        "inactive_public",
+        "inactive_private",
+    ]
     swe_all = pd.DataFrame()
     for file in files:
         f = f"{file}.csv"
