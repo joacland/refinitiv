@@ -39,79 +39,40 @@ print(ek.__version__)
 
 # WHICH VARIABLE(S) TO RETRIEVE?
 # OWN_VAR = 'PeriodEndDate'
-OWN_VAR = "CUSIP"
+OWN_VAR = "PeriodEndDate"
 # OWN_TR_VAR = 'TR.F.' + str(OWN_VAR)
-OWN_TR_VAR = "TR." + str(OWN_VAR)
+OWN_TR_VAR = "TR.F." + str(OWN_VAR)
 
 # FROM WHICH VARIABLE?
 # SYM_IN = 'OAPermID'
-SYM_IN = 'RIC'
+SYM_IN = 'OrganizationID'
 
 header = [SYM_IN, OWN_VAR]
 
 # YEAR TYPE
-YEAR_TYPE = "CY"  # CY or FY (Calendar Year or Fiscal Year)
+YEAR_TYPE = "FY"  # CY or FY (Calendar Year or Fiscal Year)
 
 # SDate?
 START_MONTH = "12"  # For rolling Sdates
 START_DAY = "31"  # For rolling SDates
 FIRST_YEAR = 2000
-LAST_YEAR = datetime.now().year + 1
+# LAST_YEAR = datetime.now().year + 1
+LAST_YEAR = 2021
+
 
 # WHERE IS, AND WHERE TO PUT, DATA?
-SOURCE_PATH = "G:\\"  # where is?
+SOURCE_PATH = "D:\\"  # where is?
 # SOURCE_PATH = 'C:\\Users\\joach\\OneDrive\\Dokument'  # where is?
-OUT_PATH = "G:\\"  # where to?
+OUT_PATH = "D:\\"  # where to?
 
 # FILE NAMES OF DATA
-SOURCE_FNAME = "ric_v2"  # Name of source file
+# SOURCE_FNAME = "ric_v2"  # Name of source file
 # SOURCE_FNAME = "organizationid_cleaned"  # Name of source file
+SOURCE_FNAME = "organizationid_swe"  # Name of source file
 SOURCE_FNAME_SUFFIX = ".csv"  # Source file type
 
 OUT_FNAME = str(OWN_VAR).lower()  # Name of output file
 OUT_FNAME_SUFFIX = ".csv"  # Output file type
-
-# def e_def_tr_field(
-#         tr_var,            # Which TR.XXX variable?
-#         period='FY0',  # Last fiscal yr, FI0/FQ0,FS0, CY0, CQ0, FY/CY2020, 2FQ/FS2013
-#         s_date='0D',       # Present day as default
-#         scale=6,           # Numbers in millions as default
-#         roll_per='False',  # No rolling periods, i.e., same period end date for all
-#         align_type='PeriodEndDate',
-#         rep_state='Orig',  # Orig = Original, alt Rstd = Restated
-#         rep_type='Final'   # Final/Prelim/Latest
-#         ):
-#     '''
-#     Function to define the TR field with fundamental data to retrieve
-#     Function does not work. Ignore.
-#     '''
-#     trf = str(ek.TR_Field(tr_var,
-#                 {'Period': period,
-#                  'SDate': s_date,
-#                  'Scale': scale,
-#                  'RollPeriods':roll_per,
-#                  'AlignType': align_type,
-#                  'ReportingState': rep_state,
-#                  'ReportType': rep_type
-#                  }
-#                 )
-#     )
-#     return trf
-#
-# def e_get_fundamentals(instr_lst, fund_vars):
-#     '''
-#     Function to retrieve fundamental data from Eikon.
-#     Input instruments (from list) is instr_lst
-#     Function does not work. Ignore.
-#     '''
-#     fund_df, err = ek.get_data(
-#         instruments=instr_lst,
-#         fields=fund_vars,
-#         field_name=False,
-#         raw_output=False
-#         )
-#     return fund_df
-
 
 if __name__ == "__main__":
 
@@ -157,7 +118,7 @@ if __name__ == "__main__":
         period = f"{YEAR_TYPE}{yr}"
         # If rolling start date (SDate)? What should it be?
         # s_dte = str(yr) + "-" + str(START_MONTH) + "-" + str(START_DAY)
-        s_dte = f"{yr}-{START_MONTH}-{START_DAY}"
+        s_dte = f"{yr+1}-{START_MONTH}-{START_DAY}"
         # print(" - Period: " + str(period) + ", based on SDate " + str(s_dte))
         print(f" - Period: {period}, based on SDate {s_dte}.")
         own_fields = [
@@ -192,11 +153,8 @@ if __name__ == "__main__":
                     )
                 except Exception as own_err:
                     print(
-                        "Exception in attempt #"
-                        + str(rec_attempts)
-                        + ": "
-                        + str(own_err)
-                        + ", was raised. Trying again."
+                        f"Exception in attempt # {str(rec_attempts)}: {str(own_err)}, was raised. Trying "
+                        f"again. "
                     )
                     # Try again after a sleep of 30 seconds
                     time.sleep(30)
@@ -208,17 +166,25 @@ if __name__ == "__main__":
                 print("All attempts have failed: Program aborted")
                 sys.exit()
 
+            # Drop empty rows
+            my_header = list(dta.columns.values)
+            dta = dta.dropna(how="any", subset=my_header[1])
+
+            # Remove any duplicates
+            dta = dta.drop_duplicates()
+
             # Saves the retrieved Eikon data to out-file
-            dta.to_csv(
-                OUT_FNAME_CPL,
-                mode="a",
-                sep="\t",
-                encoding="utf-8",
-                index=False,
-                header=False,
-            )
+            if len(dta) > 0:
+                dta.to_csv(
+                    OUT_FNAME_CPL,
+                    mode="a",
+                    sep="\t",
+                    encoding="utf-8",
+                    index=False,
+                    header=False,
+                )
             # Pause for 10s to reduce risk of throwing an exception
-            time.sleep(10)
+            # time.sleep(10)
 
     # FIX OUTPUT FILE
     # Revised file name
