@@ -11,11 +11,13 @@ of the download of Refinitiv Eikon data.
 #  Copyright (c) 2022. All right reserved.
 
 # IMPORT PACKAGES
-import csv
+# import csv
 import pathlib as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
+import json as js
 from datetime import datetime, timezone
+import time  # For sleep functionality
 
 import pandas as pd
 
@@ -126,16 +128,26 @@ def save_to_csv_file(
 
     Notes:
     """
-
-    df.to_csv(
-        file,
-        mode=mode,
-        sep=sep,
-        encoding=encoding,
-        index=index,
-        header=header,
-        **kwargs,
-    )
+    for save_attempts in range(5):
+        try:
+            df.to_csv(
+                file,
+                mode=mode,
+                sep=sep,
+                encoding=encoding,
+                index=index,
+                header=header,
+                **kwargs,
+            )
+        except Exception as save_err:
+            print(
+                f"Failed to save as csv-file. Attempt # {str(save_attempts)}: {str(save_err)}."
+            )
+            # Try again after a sleep of 1 second(s)
+            time.sleep(2)
+            continue  # Starts the loop anew.
+        else:
+            break  # Executed if 'try' yields no error.
 
 
 def save_to_parquet_file(df, file, compression="snappy", **kwargs):
@@ -157,11 +169,61 @@ def save_to_parquet_file(df, file, compression="snappy", **kwargs):
     The function requires either "pyarrow", or "fastparquet".
     Requires "pathlib".
     """
-    # Drop existing file
-    if pl.Path.exists(file):
-        pl.Path.unlink(file)
-    # Save DB
-    df.to_parquet(file, compression=compression, **kwargs)
+    for save_attempts in range(5):
+        try:
+            # Drop existing file
+            if pl.Path.exists(file):
+                pl.Path.unlink(file)
+            # Save DB
+            df.to_parquet(file, compression=compression, **kwargs)
+        except Exception as save_err:
+            print(
+                f"Failed to save as parquet-file. Attempt # {str(save_attempts)}: {str(save_err)}."
+            )
+            # Try again after a sleep of 1 second(s)
+            time.sleep(2)
+            continue  # Starts the loop anew.
+        else:
+            break  # Executed if 'try' yields no error.
+
+
+def save_to_json(dta, file, mode="w", encoding="utf-8", **kwargs):
+    """
+    Enter, at least, two arguments (a dictionary and a file name) and save data as ana json file.
+
+    Arguments:
+
+    dta: The data to be saved.
+
+    file: The json-file name.
+
+
+    Return: Returns json-file.
+
+    Notes:
+
+    """
+    if mode == "b":
+        enc = ""  # No encoding for binary files
+    else:
+        enc = encoding
+
+    for save_attempts in range(5):
+        try:
+            # Serializing json
+            json_object = js.dumps(dta, indent=4)
+            # Save database
+            with open(file, mode=mode, encoding=enc, **kwargs) as outfile:
+                outfile.write(json_object)
+        except Exception as save_err:
+            print(
+                f"Failed to save as json-file. Attempt # {str(save_attempts)}: {str(save_err)}."
+            )
+            # Try again after a sleep of 1 second(s)
+            time.sleep(2)
+            continue  # Starts the loop anew.
+        else:
+            break  # Executed if 'try' yields no error.
 
 
 def read_csv_file(
@@ -200,6 +262,13 @@ def read_csv_file(
     return df
 
 
+def read_json_file(file, mode="r", **kwargs):
+    """ Enter a json-file name and it reads the file. """
+    with open(file, mode=mode, **kwargs) as json_file:
+        json_dta = js.load(json_file)
+    return json_dta
+
+
 def clean_data(in_df, idx, col_vars):
     """
     Reads a Pandas dataframe, drops missing observations and returns it again.
@@ -221,13 +290,18 @@ def clean_data(in_df, idx, col_vars):
     col_vars: A list of column(s). NaN in all there cols lead to drop of the
     row. This is used in the second pass
     """
-
-    # Drop if NaN in any of the index columns
-    df = in_df.dropna(how="any", subset=idx)
-    # Drop if NaN in all variable columns
-    df = df.dropna(how="all", subset=col_vars)
-    # Drop of there exists duplicates
-    idx_all = idx + col_vars
-    df = df.sort_values(by=idx_all, na_position="last")
-    df = df.drop_duplicates(keep="first")
+    if len(df) > 0:
+        try:
+            # Drop if NaN in any of the index columns
+            df = in_df.dropna(how="any", subset=idx)
+            # Drop if NaN in all variable columns
+            df = df.dropna(how="all", subset=col_vars)
+            # Drop of there exists duplicates
+            idx_all = idx + col_vars
+            df = df.sort_values(by=idx_all, na_position="last")
+            df = df.drop_duplicates(keep="first")
+        except:
+            print(f"clean_data failed to execute properly on {df}.")
+    else:
+        print(f"clean_data failed since {df} is empty.")
     return df
