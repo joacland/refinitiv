@@ -46,14 +46,16 @@ def create_source_file_stem(prepend=None, middle=None, end=None):
         if middle is not None:
             fid = f"{prepend}_{str(middle.lower())}"
         elif end is not None:
-            fid = f"{prepend}_{str(end)}"
+            fid = f"{prepend}_{str(end).lower()}"
+        else:
+            fid = f"{prepend}"
     else:
         if not all([middle, end]):
             fid = f"{str(middle.lower())}_{str(end)}"
         elif middle is not None:
             fid = f"{str(middle.lower())}"
         elif end is not None:
-            fid = f"{str(end)}"
+            fid = f"{str(end).lower()}"
     return fid
 
 
@@ -228,24 +230,26 @@ def read_csv_file(
     file, delimiter="\t", na_values=" ", dtype=str, low_memory=False, **kwargs
 ):
     """
-    Enter, at least, a csv-file name and it reads the file.
+    Enter a csv-file name (incl path), and it returns a Pandas dataframe.
 
     Arguments:
 
-    file: The csv-file name.
+    file: The csv-file to be read.
 
-    delimiter: Field delimiter. Default is tabulated (\t).
+    delimiter: Column delimited. Default is tab.
 
-    na_values: How to treat NA. Default leave empty.
+    na_values: How to mark NAs? Default is to leave empty.
 
-    dtype: Data type. Default is string.
+    dtype: Data type. Default is string. Use a dict to specify datatype for
+    individual columns.
 
-    low_memory: True/False. Default is "False".
+    low_memory: Default False to reduce risk of mixed type interference. Use
+    True if short of memory
 
-    Return: Reads the csv file
+    Return: Returns a Pandas dataframe
 
     Notes:
-    The function requires Pandas
+    The function requires Pandas.
     """
     df = pd.read_csv(
         file,
