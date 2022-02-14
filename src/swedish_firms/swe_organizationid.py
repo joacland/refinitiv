@@ -23,6 +23,8 @@ The script requires three files:
 """
 import pandas as pd
 import pathlib as pl
+import os
+import cs
 from pandas_ods_reader import read_ods
 from src.my_functions import own_functions as own
 
@@ -45,6 +47,12 @@ if __name__ == "__main__":
         OUT_DIR, "swe_all_organizationid.csv"
     )  # Out path for outfile
 
+    # Remove output file, if it exists
+    if os.path.exists(OUT_PATH_MRK):
+        os.remove(OUT_PATH_MRK)
+    if os.path.exists(OUT_PATH_ALL):
+        os.remove(OUT_PATH_ALL)
+
     # Get OrganizationID for firms having been, or is being traded in Sweden
     df = own.read_csv_file(RAW_MRK)
     swe_market = ["ST", "TE", "NGM"]
@@ -52,11 +60,13 @@ if __name__ == "__main__":
     for mkr in swe_market:
         sel = f"\.{mkr}"
         partial = df[df.RIC.str.contains(sel, regex=True)]
+        partial = partial[["OrganizationID"]]
         swe_mrk = swe_mrk.append(partial)
-    swe_mrk = swe_mrk[["OrganizationID"]]
     swe_mrk = swe_mrk.drop_duplicates()
     swe_mrk = swe_mrk.sort_values(by="OrganizationID", na_position="last")
-    own.save_to_csv_file(swe_mrk, OUT_PATH_MRK)
+    own.save_to_csv_file(
+        swe_mrk, OUT_PATH_MRK, float_format=str, quoting=csv.QUOTE_NONNUMERIC
+    )
 
     # Get OrganizationID for Swedish firms
     # (public & private, active or non-active)
@@ -76,4 +86,6 @@ if __name__ == "__main__":
         swe_all = swe_all.append(df)
     swe_all = swe_all.drop_duplicates()
     swe_all = swe_all.sort_values(by="OrganizationID", na_position="last")
-    own.save_to_csv_file(swe_all, OUT_PATH_MRK)
+    own.save_to_csv_file(
+        swe_all, OUT_PATH_ALL, float_format=str, quoting=csv.QUOTE_NONNUMERIC
+    )
