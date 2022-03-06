@@ -104,7 +104,7 @@ if __name__ == "__main__":
         "FootnotesCAS",
     ]
     REFINITIV_TEMPLATES = [
-        "IncomeStatement"
+        "CashFlowStatement"
     ]
 
     for tmpl in REFINITIV_TEMPLATES:
@@ -129,7 +129,9 @@ if __name__ == "__main__":
             # OUT FILE MGMT
             # File per year
             o_fname = f"{tmpl}_{str(yr)}.{SUFFIX}"
+            err_fname = f"{tmpl}_{str(yr)}.err"
             out_fname_cpl = os.path.join(OUT_PATH, o_fname)
+            out_fname_err = os.path.join(OUT_PATH, err_fname)
 
             # Remove output file, if it exists
             if os.path.exists(out_fname_cpl):
@@ -178,6 +180,7 @@ if __name__ == "__main__":
                 #     ek.TR_Field("TR.F.IncomeStatement.FCCNameShort", own_dict),
             ]
 
+            dta_all = pd.DataFrame()  # Just so it is defined
             year_idx = 0  # Counter needed for appending dataframe or dict
             # The actual retrieval loop
             # I run this in sections to avoid other types of errors such as 'timeout'
@@ -191,7 +194,7 @@ if __name__ == "__main__":
                 for rec_attempts in range(10):
                     try:
                         if not save_as_json:
-                            dta = pd.DataFrame()  # Just so it exists
+                            dta = pd.DataFrame()  # Just so it is defined
                             dta, err = ek.get_data(
                                 instruments=own_list[line_start:line_end],
                                 fields=own_fields,
@@ -221,24 +224,34 @@ if __name__ == "__main__":
 
                 if not save_as_json:
                     # Drop empty rows
-                    if dta is not None:
+                    if err is not None:
+                        err = err.drop_duplicates()
                         if not dta.empty:
-                            my_header = list(dta.columns.values)
-                            my_idx = list(my_header[1:3])
-                            dta = dta.dropna(how="any", subset=my_idx)
-
-                            # Remove any duplicates
-                            dta = dta.drop_duplicates()
-
-                        # Appends the retrieved Eikon data to out-file, unless empty dta
-                        if not dta.empty:
-                            dta = dta.drop("Org ID",  axis="columns")
-                            dta = dta.rename(columns={"Instruments": "OrganizationID"})
                             if year_idx == 0:
-                                dta_all = dtaöl
+                                err_all = err
                             else:
-                                frames = [dta_all, dta]
-                                dta_all = pd.concat(frames)
+                                if err_all is None:
+                                    err_all = err
+                                else:
+                                    frames = [err_all, err]
+                                    err_all = pd.concat(frames)
+                    if not dta.empty:
+                        my_header = list(dta.columns.values)
+                        my_idx = list(my_header[1:3])
+                        dta = dta.dropna(how="any", subset=my_idx)
+
+                        # Remove any duplicates
+                        dta = dta.drop_duplicates()
+                    # Appends the retrieved Eikon data to out-file, unless empty dta
+                    if not dta.empty:
+                        dta = dta.drop("Org ID",  axis="columns")
+                        dta = dta.rename(columns={"Instruments": "OrganizationID"})
+                        dta = dta.rename(columns={"Instrument": "OrganizationID"})
+
+                        frames = [dta_all, dta]
+                        dta_all = pd.concat(frames)
+                        print(f"     dta_all len is {len(dta_all)}")
+
                 else:
                     # Update dict prior to save
                     if year_idx == 0:
@@ -259,4 +272,5 @@ if __name__ == "__main__":
                 own.save_to_json(dict_all, out_fname_cpl)
             else:
                 own.save_to_csv_file(dta_all, out_fname_cpl)
+                own.save_to_csv_file(err_all, out_fname_err)
 print("DONE")
