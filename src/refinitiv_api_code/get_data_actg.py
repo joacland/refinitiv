@@ -39,12 +39,12 @@ align = "PeriodEndDate"
 roll = "False"
 special = "Yes"
 
-FIRST_YEAR = 2017
-LAST_YEAR = 2017
+FIRST_YEAR = 2020
+LAST_YEAR = 2020
 
 # WHERE IS, AND WHERE TO PUT, DATA?
-SOURCE_PATH = "D:\\"  # where is?
-OUT_PATH = "D:\\"  # where to?
+SOURCE_PATH = "F:\\"  # where is?
+OUT_PATH = "F:\\"  # where to?
 
 # How to save the data?
 # save_as_json = True  # If False, data is downloaded and saved as CSV, else as JSON
@@ -195,6 +195,7 @@ if __name__ == "__main__":
                     try:
                         if not save_as_json:
                             dta = pd.DataFrame()  # Just so it is defined
+                            err = pd.DataFrame()  # Just so it is defined
                             dta, err = ek.get_data(
                                 instruments=own_list[line_start:line_end],
                                 fields=own_fields,
@@ -223,18 +224,11 @@ if __name__ == "__main__":
                     sys.exit()
 
                 if not save_as_json:
-                    # Drop empty rows
-                    if err is not None:
+                    if not err.empty:
                         err = err.drop_duplicates()
-                        if not dta.empty:
-                            if year_idx == 0:
-                                err_all = err
-                            else:
-                                if err_all is None:
-                                    err_all = err
-                                else:
-                                    frames = [err_all, err]
-                                    err_all = pd.concat(frames)
+                        if not err.empty:
+                            frames = [err_all, err]
+                            err_all = pd.concat(frames)
                     if not dta.empty:
                         my_header = list(dta.columns.values)
                         my_idx = list(my_header[1:3])
