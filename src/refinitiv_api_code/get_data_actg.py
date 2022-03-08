@@ -229,22 +229,23 @@ if __name__ == "__main__":
                             if not err.empty:
                                 frames = [err_all, err]
                                 err_all = pd.concat(frames)
-                    if not dta.empty:
-                        my_header = list(dta.columns.values)
-                        my_idx = list(my_header[1:3])
-                        dta = dta.dropna(how="any", subset=my_idx)
+                    if dta is not None:
+                        if not dta.empty:
+                            my_header = list(dta.columns.values)
+                            my_idx = list(my_header[1:3])
+                            dta = dta.dropna(how="any", subset=my_idx)
 
-                        # Remove any duplicates
-                        dta = dta.drop_duplicates()
-                    # Appends the retrieved Eikon data to out-file, unless empty dta
-                    if not dta.empty:
-                        dta = dta.drop("Org ID",  axis="columns")
-                        dta = dta.rename(columns={"Instruments": "OrganizationID"})
-                        dta = dta.rename(columns={"Instrument": "OrganizationID"})
+                            # Remove any duplicates
+                            dta = dta.drop_duplicates()
+                        # Appends the retrieved Eikon data to out-file, unless empty dta
+                        if not dta.empty:
+                            dta = dta.drop("Org ID",  axis="columns")
+                            dta = dta.rename(columns={"Instruments": "OrganizationID"})
+                            dta = dta.rename(columns={"Instrument": "OrganizationID"})
 
-                        frames = [dta_all, dta]
-                        dta_all = pd.concat(frames)
-                        print(f"     dta_all len is {len(dta_all)}")
+                            frames = [dta_all, dta]
+                            dta_all = pd.concat(frames)
+                            print(f"     dta_all len is {len(dta_all)}")
 
                 else:
                     # Update dict prior to save
