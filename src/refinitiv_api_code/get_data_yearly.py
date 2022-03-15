@@ -39,9 +39,11 @@ print(ek.__version__)
 
 # WHICH VARIABLE(S) TO RETRIEVE?
 # OWN_VAR = 'PeriodEndDate'
-OWN_VAR = "PeriodEndDate"
+# OWN_VAR = "PeriodEndDate"
+OWN_VAR = "BSPeriodEndDate"  # Refinitiv Financials
 # OWN_TR_VAR = 'TR.F.' + str(OWN_VAR)
 OWN_TR_VAR = "TR.F." + str(OWN_VAR)
+OWN_TR_VAR = "TR." + str(OWN_VAR)  # Refinitiv Financials
 
 # FROM WHICH VARIABLE?
 # SYM_IN = 'OAPermID'
@@ -61,14 +63,15 @@ LAST_YEAR = 2021
 
 
 # WHERE IS, AND WHERE TO PUT, DATA?
-SOURCE_PATH = "D:\\"  # where is?
+SOURCE_PATH = "F:\\"  # where is?
 # SOURCE_PATH = 'C:\\Users\\joach\\OneDrive\\Dokument'  # where is?
-OUT_PATH = "D:\\"  # where to?
+OUT_PATH = "F:\\"  # where to?
 
 # FILE NAMES OF DATA
 # SOURCE_FNAME = "ric_v2"  # Name of source file
 # SOURCE_FNAME = "organizationid_cleaned"  # Name of source file
-SOURCE_FNAME = "organizationid_swe"  # Name of source file
+# SOURCE_FNAME = "organizationid_swe"  # Name of source file
+SOURCE_FNAME = "organizationid"  # Name of source file
 SOURCE_FNAME_SUFFIX = ".csv"  # Source file type
 
 OUT_FNAME = str(OWN_VAR).lower()  # Name of output file
