@@ -11,6 +11,7 @@ which should have OrganizationID as column head.
 import os
 import sys
 import csv
+
 # import json
 import time  # For sleep functionality
 import eikon as ek
@@ -48,7 +49,9 @@ OUT_PATH = "F:\\"  # where to?
 
 # How to save the data?
 # save_as_json = True  # If False, data is downloaded and saved as CSV, else as JSON
-save_as_json = False  # If False, data is downloaded and saved as CSV, else as JSON
+save_as_json = (
+    False  # If False, data is downloaded and saved as CSV, else as JSON
+)
 if save_as_json:
     SUFFIX = "json"  # Adds correct file suffix
 else:
@@ -70,8 +73,8 @@ if not save_as_json:
         "StmtPrelimFlag",  # Activation Date of summary estimate
         "FundConsol",
         "Currency",
-        "FundamentalAcctStd",
-        "VariableName",
+        # "FundamentalAcctStd",
+        # "VariableName",
         "VariableValue",
     ]
 
@@ -84,7 +87,7 @@ if __name__ == "__main__":
     own_list = own.read_csv_file(SOURCE_FNAME_CPL)
     own_list = own_list["OrganizationID"].values.tolist()
     print("No of OrganizationIDs to retrieve data for: " + str(len(own_list)))
-    # own_list = ['4295890024', '4295859652']
+    # own_list = ["4295890024", "4295859652", "4295889865"]
 
     # RETRIEVE DATA FROM EIKON
     # Template names:
@@ -96,16 +99,14 @@ if __name__ == "__main__":
     # "BusinessSegments"  # Holds Business Segment Level Data. Must be retrieved
     # independently of other templates.
 
-    REFINITIV_TEMPLATES = [
-        "IncomeStatement",
-        "BalanceSheet",
-        "CashFlowStatement",
-        "FootnotesINC",
-        "FootnotesCAS",
-    ]
-    REFINITIV_TEMPLATES = [
-        "CashFlowStatement"
-    ]
+    # REFINITIV_TEMPLATES = [
+    #     "IncomeStatement",
+    #     "BalanceSheet",
+    #     "CashFlowStatement",
+    #     "FootnotesINC",
+    #     "FootnotesCAS",
+    # ]
+    REFINITIV_TEMPLATES = ["FootnotesINC", "FootnotesCAS"]
 
     for tmpl in REFINITIV_TEMPLATES:
 
@@ -117,21 +118,26 @@ if __name__ == "__main__":
         actgstd = f"TR.F.{tmpl}.FundamentalAcctStd"  # Accounting Standard
         seg_name = f"TR.F.{tmpl}.segmentName"  # Segment Name, only if segment data is downloaded
         var_name = (
-            f"TR.F.{tmpl}.FccItemName"  # FCC Item Name, a.k.a. variable name
+            # f"TR.F.{tmpl}.FccItemName"  # FCC Item Name, a.k.a. variable name
+            f"TR.F.{tmpl}.FccName"  # FCC Item Name, a.k.a. variable name
         )
+        # var_name = (
+        #     f"TR.F.{tmpl}"  # FCC Item Name, a.k.a. variable name
+        # )
+        # var_fcc = (
+        #     f"TR.F.{tmpl}.FCC"  # FCC
+        # )
         var_value = f"TR.F.{tmpl}.value"  # FCC Item Name Value, a.k.a the actual data sought
         print(" ")
         print(f"Running on template {tmpl}:")
 
-        for yr in range(LAST_YEAR, FIRST_YEAR-1, -1):
+        for yr in range(LAST_YEAR, FIRST_YEAR - 1, -1):
             sdate = f"{yr + 1}-12-31"
             period = f"FY{yr}"
             # OUT FILE MGMT
             # File per year
             o_fname = f"{tmpl}_{str(yr)}.{SUFFIX}"
-            err_fname = f"{tmpl}_{str(yr)}.err"
             out_fname_cpl = os.path.join(OUT_PATH, o_fname)
-            out_fname_err = os.path.join(OUT_PATH, err_fname)
 
             # Remove output file, if it exists
             if os.path.exists(out_fname_cpl):
@@ -140,7 +146,9 @@ if __name__ == "__main__":
             # Header to output file?
             if not save_as_json:
                 with open(out_fname_cpl, "w", encoding="UTF8", newline="") as f:
-                    writer = csv.DictWriter(f, delimiter="\t", fieldnames=header)
+                    writer = csv.DictWriter(
+                        f, delimiter="\t", fieldnames=header
+                    )
                     writer.writeheader()
 
             period = f"FY{yr}"  # E.g. "FY2020".
@@ -167,8 +175,9 @@ if __name__ == "__main__":
                 ek.TR_Field(prelim, own_dict),
                 ek.TR_Field(consol, own_dict),
                 ek.TR_Field(curr, own_dict),
-                ek.TR_Field(actgstd, own_dict),
+                ek.TR_Field(actgstd, own_dict),  # Isn't available for the cash flow statement
                 ek.TR_Field(var_name, own_dict),
+                # ek.TR_Field(var_fcc, own_dict),
                 ek.TR_Field(var_value, own_dict),
                 #     ek.TR_Field(seg_name, own_dict),  # Only if segment data is requested
                 #     ek.TR_Field("TR.F.IncomeStatement.fperiod", own_dict2),
@@ -198,14 +207,14 @@ if __name__ == "__main__":
                             dta, err = ek.get_data(
                                 instruments=own_list[line_start:line_end],
                                 fields=own_fields,
-                                raw_output=False
+                                raw_output=False,
                             )
                         else:
                             dta_dict = ek.get_data(
                                 instruments=own_list[line_start:line_end],
                                 fields=own_fields,
                                 field_name=True,
-                                raw_output=True
+                                raw_output=True,
                             )
                     except Exception as own_err:
                         print(
@@ -223,12 +232,6 @@ if __name__ == "__main__":
                     sys.exit()
 
                 if not save_as_json:
-                    if err is not None:
-                        if not err.empty:
-                            err = err.drop_duplicates()
-                            if not err.empty:
-                                frames = [err_all, err]
-                                err_all = pd.concat(frames)
                     if dta is not None:
                         if not dta.empty:
                             my_header = list(dta.columns.values)
@@ -239,9 +242,16 @@ if __name__ == "__main__":
                             dta = dta.drop_duplicates()
                         # Appends the retrieved Eikon data to out-file, unless empty dta
                         if not dta.empty:
-                            dta = dta.drop("Org ID",  axis="columns")
-                            dta = dta.rename(columns={"Instruments": "OrganizationID"})
-                            dta = dta.rename(columns={"Instrument": "OrganizationID"})
+                            dta = dta.drop("Org ID", axis="columns")
+                            # dta.columns = header
+                            # dta.columns = header
+                            # dta["VariableName"] = f"TR.F.{tmpl}"
+                            dta = dta.rename(
+                                columns={"Instruments": "OrganizationID"}
+                            )
+                            dta = dta.rename(
+                                columns={"Instrument": "OrganizationID"}
+                            )
 
                             frames = [dta_all, dta]
                             dta_all = pd.concat(frames)
@@ -259,13 +269,16 @@ if __name__ == "__main__":
                         dta_all = dict_all.pop("data")
                         dta_update = dta_dict.pop("data")
                         dict_all["data"] = dta_all + dta_update
-                year_idx += 1  # Index within a year (yr) to track each retrieval
+                year_idx += (
+                    1  # Index within a year (yr) to track each retrieval
+                )
                 time.sleep(1)
             # Only save data to file once per yr
             if save_as_json:
-                dict_all["totalRowsCount"] = len(dta_all + dta_update)  # Update row count based on full set of data
+                dict_all["totalRowsCount"] = len(
+                    dta_all + dta_update
+                )  # Update row count based on full set of data
                 own.save_to_json(dict_all, out_fname_cpl)
             else:
                 own.save_to_csv_file(dta_all, out_fname_cpl)
-                own.save_to_csv_file(err_all, out_fname_err)
 print("DONE")
