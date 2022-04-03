@@ -4,14 +4,11 @@ Created on 26 nov. 2021
 
 Based on a list of RICs
 
-Retrieves a single Eikon instrument variable and saves it into a single csv-file.
+Retrieves Eikon variables and saves them to a csv-file.
 The script generates two files, a -raw- file and a v2 file. The v2 file has data
 where empty rows, and possible duplicate rows, are discarded. Use v2.
 
 Frequency is yearly
-
-The output file is prefixed with the variable name in lower case
-(and suffixed csv). The csv-file is tab separated.
 
 Input required
 ---------------
@@ -21,85 +18,74 @@ Out file path: Where to put the output file?
 """
 import csv
 import os
+import pathlib as pl
 import sys
 import time  # For sleep functionality
 # IMPORT PACKAGES
 from datetime import datetime
+from src.my_functions import own_functions as own
 
 import eikon as ek  # the Eikon Python wrapper package
 import pandas as pd
 
 # SET THE EIKON CONFIGURATION
-ek.set_timeout(300)  # Set Eikon's timeout to be 5 min.
+ek.set_timeout(1000)  # Set Eikon's timeout to be 5 min.
 # insert APP_KEY from app key generator in eikon
 ek.set_app_key("1418cf51ee9046a3a767d6f8c871c1d3fcaf1953")
-SIZE = 7200  # Number of rows gathered per Eikon-loop
-# print(sys.version)
-# print(ek.__version__)
+SIZE = 1500  # Number of rows gathered per Eikon-loop
 
-# WHICH VARIABLE(S) TO RETRIEVE?
-# OWN_VAR = 'PeriodEndDate'
-# OWN_VAR = "PeriodEndDate"
-# OWN_VAR = "BSPeriodEndDate"  # Refinitiv Financials
-OWN_VAR = "RIC"  # Refinitiv Financials
-# OWN_TR_VAR = 'TR.F.' + str(OWN_VAR)
-OWN_TR_VAR = "TR.F." + str(OWN_VAR)
-OWN_TR_VAR = "TR." + str(OWN_VAR)  # Refinitiv Financials
-
-# FROM WHICH VARIABLE?
-# SYM_IN = 'OAPermID'
-SYM_IN = 'RIC'
-
-header = [SYM_IN, OWN_VAR]
+# SET PANDAS CONFIGURATION
+pd.set_option("display.max_columns", None)
+pd.set_option("display.expand_frame_repr", False)
+pd.set_option("max_colwidth", None)
 
 # YEAR TYPE
-YEAR_TYPE = "FY"  # CY or FY (Calendar Year or Fiscal Year)
+# YEAR_TYPE = "CY"  # CY or FY (Calendar Year or Fiscal Year)
 
 # SDate?
-START_MONTH = "12"  # For rolling Sdates
-START_DAY = "31"  # For rolling SDates
-FIRST_YEAR = 2015
+FIRST_YEAR = 1999
 # LAST_YEAR = datetime.now().year + 1
-LAST_YEAR = 2016
+LAST_YEAR = 2008
 
-
-# WHERE IS, AND WHERE TO PUT, DATA?
-SOURCE_PATH = "F:\\"  # where is?
-# SOURCE_PATH = 'C:\\Users\\joach\\OneDrive\\Dokument'  # where is?
-OUT_PATH = "F:\\"  # where to?
+SYM_IN = 'OrganizationID'
 
 # FILE NAMES OF DATA
 # SOURCE_FNAME = "ric_v2"  # Name of source file
-# SOURCE_FNAME = "organizationid_cleaned"  # Name of source file
 # SOURCE_FNAME = "organizationid_swe"  # Name of source file
-SOURCE_FNAME = "organizationid"  # Name of source file
-SOURCE_FNAME_SUFFIX = ".csv"  # Source file type
+# SOURCE_FILE = pl.Path(r"F:\organizationid_test.csv")
+SOURCE_FILE = pl.Path(r"D:\tmp\organizationid_all.csv")
+OUT_FILE = pl.Path(r"D:\instrument_data2_organizationid.csv")  # Name of output file
+OUT_FILE2 = pl.Path(r"D:\instrument_data2_organizationid_v2.csv")  # Name of output file
 
-OUT_FNAME = str(OWN_VAR).lower()  # Name of output file
-OUT_FNAME_SUFFIX = ".csv"  # Output file type
 
 if __name__ == "__main__":
 
     # PREPARE FILES
-    # File name concatenation
-    S_FNAME = SOURCE_FNAME + SOURCE_FNAME_SUFFIX
-    SOURCE_FNAME_CPL = os.path.join(SOURCE_PATH, S_FNAME)
-
-    O_FNAME = OUT_FNAME + OUT_FNAME_SUFFIX
-    OUT_FNAME_CPL = os.path.join(OUT_PATH, O_FNAME)
-
     # Remove output file, if it exist
-    if os.path.exists(OUT_FNAME_CPL):
-        os.remove(OUT_FNAME_CPL)
+    header = [
+        # SYM_IN,
+        "Instrument",
+        "OrganizationID",
+        "UltimateParentID",
+        "InstrumentID",
+        "QuoteID",
+        "LegalEntityIdentifier",
+        "RIC",
+        "ISIN",
+        "SEDOL",
+        "FirstTradeDate",
+        "RetireDate"
+    ]
 
     # Header to output file?
-    with open(OUT_FNAME_CPL, "w", encoding="UTF8", newline="") as f:
-        writer = csv.DictWriter(f, delimiter="\t", fieldnames=header)
-        writer.writeheader()
+    # with open(OUT_FILE, "w", encoding="UTF8", newline="") as f:
+    #     writer = csv.DictWriter(f, delimiter="\t", fieldnames=header)
+    #     writer.writeheader()
 
     # READ THE DATA FROM SOURCE FILE
     # File has header. make it into a list
-    own_list = pd.read_csv(SOURCE_FNAME_CPL, low_memory=False, dtype=str, sep="\t")
+    own_list = own.read_csv_file(SOURCE_FILE)
+    # own_list =pd.read_csv(SOURCE_FNAME_CPL, low_memory=False, dtype=str, sep="\t")
     if SYM_IN == "RIC":
         delisted = own_list[own_list.RIC.str.contains('\^[A-Z][0-9]{2}')]
         delisted_original = delisted["RIC"].str.replace(r'\^[A-Z][0-9]{2}', '', regex=True, case=True)
@@ -108,7 +94,6 @@ if __name__ == "__main__":
         own_list = own_list.append(delisted_original)
     own_list = own_list.drop_duplicates()
     own_list = own_list[SYM_IN].values.tolist()
-    own_list = ["SBBb.ST", "EFFNb.ST", "EFFNE.ST"]
 
     # File has no header. Make it into a list
     # with open(SOURCE_FNAME_CPL) as f:
@@ -116,20 +101,18 @@ if __name__ == "__main__":
     # print(len(own_list))
 
     # RETRIEVE DATA FROM EIKON
-    print(f"No of {SYM_IN} to retrieve data for: {str(len(own_list))}. "
-          f"Variable: {str(OWN_TR_VAR)}")
-    for yr in range(FIRST_YEAR, LAST_YEAR + 1):
+    print(f"No of {SYM_IN} to retrieve data for: {str(len(own_list))}. ")
+    for yr in range(LAST_YEAR, FIRST_YEAR - 1, -1):
         # What period? E.g. FY2020, or CY2020
-        period = f"{YEAR_TYPE}{yr}"
+        # period = f"{YEAR_TYPE}{yr}"
         # If rolling start date (SDate)? What should it be?
-        # s_dte = str(yr) + "-" + str(START_MONTH) + "-" + str(START_DAY)
-        s_dte = f"{yr+1}-{START_MONTH}-{START_DAY}"
+        # sdate = str(yr) + "-" + str(START_MONTH) + "-" + str(START_DAY)
+        sdate = f"{yr+1}-12-31"
         # print(" - Period: " + str(period) + ", based on SDate " + str(s_dte))
-        print(f" - Period: {period}, based on SDate {s_dte}.")
-        var_value = f"TR.{OWN_VAR}"  # variable value, a.k.a the actual data sought
+        print(f" - Per SDate {sdate}.")
         own_dict = {
             # "Period": period,
-            "SDate": s_dte,
+            "SDate": sdate,
             # "Scale": scale,
             # "ReportType": rep_type,
             # "ReportingState": rep_state,
@@ -140,17 +123,27 @@ if __name__ == "__main__":
             # "IncludeSpl": special,
         }
         own_fields = [
-            ek.TR_Field(var_instrument, own_dict),
-            ek.TR_Field(var_value, own_dict)
+            ek.TR_Field("TR.OrganizationID"),
+            ek.TR_Field("TR.UltimateParentID"),
+            ek.TR_Field("TR.InstrumentID"),
+            ek.TR_Field("TR.QuoteID"),
+            ek.TR_Field("TR.LegalEntityIdentifier"),
+            ek.TR_Field("TR.RIC", own_dict),
+            ek.TR_Field("TR.ISIN", own_dict),
+            ek.TR_Field("TR.SEDOL", own_dict),
+            ek.TR_Field("TR.FirstTradeDate"),
+            ek.TR_Field("TR.RetireDate"),
         ]
         # The actual retrieval loop
         # I run this in sections to avoid other types of errors such as 'timeout'
         # errors
+        dta_all = pd.DataFrame()  # Just so it is defined
         for line_start in range(0, len(own_list) + 1, SIZE):
             line_end = line_start + SIZE
+            print(f" + Lines: {str(line_start)}/{str(line_end)} (Year {yr})")
             # Have added a retry loop if error since sometimes there are
             # problems in the API-connection
-            for rec_attempts in range(10):
+            for rec_attempts in range(20):
                 try:
                     # Retrieval function get_data
                     dta, err = ek.get_data(
@@ -159,8 +152,6 @@ if __name__ == "__main__":
                         field_name=False,
                         raw_output=False,
                     )
-                    print(dta)
-                    print(dta.info)
                 except Exception as own_err:
                     print(
                         f"Exception in attempt # {str(rec_attempts)}: {str(own_err)}, was raised. Trying "
@@ -173,62 +164,60 @@ if __name__ == "__main__":
                     break
             else:
                 # All attempts failed
-                print("All attempts have failed: Program aborted")
+                print(f"All attempts have failed: Program aborted while running year {yr}")
                 sys.exit()
 
-            # Drop empty rows
-            my_header = list(dta.columns.values)
-            dta = dta.dropna(how="any", subset=my_header[1])
+            if dta is not None:
+                if not dta.empty:
+                    # Drop empty rows
+                    my_header = list(dta.columns.values)
+                    dta = dta.dropna(how="all", subset=my_header[1:])
 
-            # Remove any duplicates
-            dta = dta.drop_duplicates()
+                    # Remove any duplicates
+                    dta = dta.drop_duplicates()
+                # Appends the retrieved Eikon data to out-file, unless empty dta
+                if not dta.empty:
+                    # dta = dta.rename(
+                    #     columns={"Instruments": "SEDOL"}
+                    # )
+                    # dta = dta.rename(
+                    #     columns={"Instrument": "SEDOL"}
+                    # )
 
-            # Saves the retrieved Eikon data to out-file
-            if len(dta) > 0:
-                dta.to_csv(
-                    OUT_FNAME_CPL,
-                    mode="a",
-                    sep="\t",
-                    encoding="utf-8",
-                    index=False,
-                    header=False,
-                )
-            # Pause for 10s to reduce risk of throwing an exception
-            # time.sleep(10)
+                    frames = [dta_all, dta]
+                    dta_all = pd.concat(frames)
+                    dta_all = dta_all.drop_duplicates()
+                    print(f"     dta_all len is {len(dta_all)}")
+            time.sleep(1)
+        # Only save data to file once per yr
+        own.save_to_csv_file(dta_all, OUT_FILE)
 
     # FIX OUTPUT FILE
     # Revised file name
-    NEW_O_FNAME = OUT_FNAME + "_v2" + OUT_FNAME_SUFFIX
-    NEW_OUT_FNAME_CPL = os.path.join(OUT_PATH, NEW_O_FNAME)
-
     # Remove revised out-file, if it exists
-    if os.path.exists(NEW_OUT_FNAME_CPL):
-        os.remove(NEW_OUT_FNAME_CPL)
+    if os.path.exists(OUT_FILE2):
+        os.remove(OUT_FILE2)
 
     # Write header to revised out file
-    with open(NEW_OUT_FNAME_CPL, "w", encoding="UTF8", newline="") as f:
+    with open(OUT_FILE2, "w", encoding="UTF8", newline="") as f:
         writer = csv.DictWriter(f, delimiter="\t", fieldnames=header)
         writer.writeheader()
 
     # Read the original out file
-    dta = pd.read_csv(OUT_FNAME_CPL, delimiter="\t", low_memory=False, dtype=str)
+    dta = own.read_csv_file(OUT_FILE)
     print(f"Length of the original file is {len(dta)}.")
 
     # Drop empty rows
-    dta.dropna(subset=[OWN_VAR], inplace=True)
+    my_header = list(dta.columns.values)
+    my_data = list(my_header[2:])
+    dta.dropna(how="all", subset=my_data, inplace=True)
+    dta.dropna(how="all", subset=my_data, inplace=True)
 
     # Remove any duplicates
     dta.drop_duplicates(inplace=True)
     print(f"Length of the cleansed file is now {len(dta)}.")
 
     # Save data
-    dta.to_csv(
-        NEW_OUT_FNAME_CPL,
-        mode="a",
-        sep="\t",
-        encoding="utf-8",
-        index=False,
-        header=False,
-        quoting=csv.QUOTE_ALL
-    )
+    own.save_to_csv_file(dta, OUT_FILE2)
+
     print("DONE")

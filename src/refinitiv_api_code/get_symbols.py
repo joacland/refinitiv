@@ -13,9 +13,9 @@ Beware that the list of RICs does not expect a heading, and that its a pure txt-
 The output file is prefixed with the variable name in lower case
 (and suffixed csv). The csv-file is tab separated.
 
-TODO: This needs to be fully converted to save diction as JSON since 
+TODO: This needs to be fully converted to save diction as JSON since
 raw_output = True gives dictions and setting best_match = False gives too strange
-output as a Pandas dataframe. I've started the work, but its not complete. 
+output as a Pandas dataframe. I've started the work, but its not complete.
 Something to think of is how to append a diction as the loop goes on. It's not
 valid to append a JSON file with dictions. Figure out appending dictions
 
@@ -26,30 +26,52 @@ Source file path: Where is the list
 Out file path: Where to put the output file?
 """
 # IMPORT PACKAGES
-#from datetime import datetime
+# from datetime import datetime
 import csv
-import json5
+
+# import json5
 import os
 import sys
 import time  # For sleep functionality
 
 import eikon as ek  # the Eikon Python wrapper package
 import pandas as pd
+from src.my_functions import own_functions as own
 
-
-def e_get_symbols(sym_lst, sym_in, sym_out):
+def e_get_symbols(
+    sym_lst,
+    from_symbol_type="RIC",
+    to_symbol_type=None,
+    best_match=False,
+    raw_output=True,
+    **kwargs
+):
     """
-    Function to retrieve symbol data from Eikon.
-    Input symbol (from list) is sym_in
-    Output symbol if sym_out
-    best_match is set to False to get all matches and not just Primary
+    Enter an argument with symbols and get data with other symbols.
+
+    Arguments
+
+    sym_in : List with symbols from which data is to be received
+
+    from_symbol_type: Instrument code to convert from. Possible values: CUSIP,
+                    ISIN, SEDOL, RIC, ticker, lipperID, and IMO. Default is RIC.
+
+    to_symbol_type: Instrument code to convert to. Possible values: CUSIP, ISIN,
+                    SEDOL, RIC, ticker, lipperID, IMO, and OAPermID. Default is ISIN.
+                    Set to None to get all data
+
+    best_match : True for primary symbol. False to get all symbols.
+
+    raw_output : Set this parameter to True to get the data in JSON format.
+                Otherwise in Pandas df.
     """
     sym_df = ek.get_symbology(
         sym_lst,
-        from_symbol_type=sym_in,
-        to_symbol_type=sym_out,
-        best_match=False,
-        raw_output=True
+        from_symbol_type=from_symbol_type,
+        to_symbol_type=to_symbol_type,
+        best_match=best_match,
+        raw_output=raw_output,
+        **kwargs
     )
     return sym_df
 
@@ -61,26 +83,31 @@ def merge_two_dicts(x, y):
     return z
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # SET THE EIKON CONFIGURATION
     ek.set_timeout(300)  # Set Eikon's timeout to be 5 min.
     # insert APP_KEY from app key generator in eikon
-    ek.set_app_key('1418cf51ee9046a3a767d6f8c871c1d3fcaf1953')
+    ek.set_app_key("1418cf51ee9046a3a767d6f8c871c1d3fcaf1953")
     SIZE = 2  # Number of rows gathered per Eikon-loop
 
+    # SET PANDAS CONFIGURATION
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.expand_frame_repr", False)
+    pd.set_option("max_colwidth", None)
+
     # WHICH VARIABLES TO RETRIEVE?
-    #OWN_VARIABLES = ['ISIN', 'SEDOL', 'CUSIP', 'OAPermID']
-    OWN_VARIABLES = ['ISIN']
+    # OWN_VARIABLES = ['ISIN', 'SEDOL', 'CUSIP', 'OAPermID']
+    OWN_VARIABLES = ["RIC"]
     # FROM WHICH VARIABLE?
-    SYM_IN = 'RIC'
+    SYM_IN = "RIC"
 
     # WHERE IS, AND WHERE TO PUT, DATA?
-    SOURCE_PATH = 'C:\\Users\\joach\\OneDrive\\Dokument'  # where is?
-    OUT_PATH = 'G:\\'  # where to?
+    SOURCE_PATH = "C:\\Users\\joach\\OneDrive\\Dokument"  # where is?
+    OUT_PATH = "G:\\"  # where to?
 
     # FILE NAMES OF DATA
-    SOURCE_FNAME = 'ric_all'  # Name of source file
-    SOURCE_FNAME_SUFFIX = '.csv'  # File type
+    SOURCE_FNAME = "ric_all"  # Name of source file
+    SOURCE_FNAME_SUFFIX = ".csv"  # File type
     # Out file specified in loop below
 
     # Source file name concatenation
@@ -89,20 +116,28 @@ if __name__ == '__main__':
 
     # READ THE DATA FROM SOURCE FILE
     # File has header. make it into a list
-    own_list = pd.read_csv(SOURCE_FNAME_CPL, low_memory=False)
-    own_list = own_list['ric'].values.tolist()
-    own_list = ['VOLVb.ST', 'ATCOa.ST', 'HUFVa.ST',
-                'VOLO.ST', '247.TE', '24STOR.ST']
-    #own_list = own_list[1:500]
+    own_list = own.read_csv_file((SOURCE_FNAME_CPL)
+    own_list = own_list["ric"].values.tolist()
+    own_list = [
+        "VOLVb.ST",
+        "ATCOa.ST",
+        "HUFVa.ST",
+        "VOLO.ST",
+        "247.TE",
+        "24STOR.ST",
+        "SBBb.ST",
+    ]
+    own_list = ["ERICb.ST"]
+    # own_list = own_list[1:500]
 
     # RETRIEVE DATA FROM EIKON
-    print('No of RICs to retrieve data for: ' + str(len(own_list)))
+    print("No of RICs to retrieve data for: " + str(len(own_list)))
     for i in OWN_VARIABLES:
         OWN_VAR = i
-        print('Retrieves data for Eikon variable: ' + str(OWN_VAR))
+        print("Retrieves data for Eikon variable: " + str(OWN_VAR))
 
         # Out file name concatenation
-        O_FNAME = str(i).lower() + '.json'
+        O_FNAME = str(i).lower() + ".json"
         OUT_FNAME_CPL = os.path.join(OUT_PATH, O_FNAME)
         print(OUT_FNAME_CPL)
 
@@ -121,19 +156,32 @@ if __name__ == '__main__':
         # errors
         for j in range(0, len(own_list), SIZE):
             k = j + SIZE
-            print(' - From ' + str(j) + ', to ' + str(k))
+            print(" - From " + str(j) + ", to " + str(k))
 
             # Have added a retry loop if error since sometimes there are
             # problems in the API-connection
             for rec_attempts in range(5):
                 try:
                     # Retrieve symbol data from Eikon
-                    dta = e_get_symbols(own_list[j:k], SYM_IN, OWN_VAR)
-                    new_name = 'mappedSymbols' + '_' + str(j)
-                    dta[new_name] = dta.pop('mappedSymbols')
+                    dta = e_get_symbols(
+                        own_list[j:k],
+                        SYM_IN,
+                        to_symbol_type=OWN_VAR,
+                        best_match=False,
+                        raw_output=True,
+                    )
+                    print(dta)
+                    new_name = "mappedSymbols" + "_" + str(j)
+                    dta[new_name] = dta.pop("mappedSymbols")
+                    print(dta)
                 except Exception as own_err:
-                    print('Exception in attempt #' + str(rec_attempts) +
-                          ': ' + str(own_err) + ', was raised. Trying again.')
+                    print(
+                        "Exception in attempt #"
+                        + str(rec_attempts)
+                        + ": "
+                        + str(own_err)
+                        + ", was raised. Trying again."
+                    )
                     # Try again after a sleep of 30 seconds
                     time.sleep(30)
                     continue
@@ -141,29 +189,31 @@ if __name__ == '__main__':
                     break
             else:
                 # All attempts failed
-                print('All attempts have failed: Program aborted')
+                print("All attempts have failed: Program aborted")
                 sys.exit()
 
             # Append json array to json file
             if j == 0:
-                with open(OUT_FNAME_CPL, 'w') as fp:
-                    json5.dump(dta, fp, sort_keys=True,
-                               indent=4, trailing_commas=False)
+                with open(OUT_FNAME_CPL, "w") as fp:
+                    json5.dump(
+                        dta, fp, sort_keys=True, indent=4, trailing_commas=False
+                    )
             else:
                 output_list = []
-                with open(OUT_FNAME_CPL, 'r') as fp:
+                with open(OUT_FNAME_CPL, "r") as fp:
                     output_list.append(json5.load(fp))
 
-                with open(OUT_FNAME_CPL, 'w') as fp:
-                    json5.dump(dta, fp, sort_keys=True,
-                               indent=4, trailing_commas=False)
+                with open(OUT_FNAME_CPL, "w") as fp:
+                    json5.dump(
+                        dta, fp, sort_keys=True, indent=4, trailing_commas=False
+                    )
 
             # Saves the retrieved Eikon data to out-file
             # dta.to_csv(OUT_FNAME_CPL, mode='a', sep='\t',
             #            encoding='utf-8', index=False, header=False)
             # Pause for 10s to reduce risk of throwing an exception
             time.sleep(10)
-        print('Time to dump')
+        print("Time to dump")
         # with open(OUT_FNAME_CPL, 'w', encoding="utf-8") as fp:
         #     json5.dump(own_dict, fp, sort_keys=True,
         #                indent=4, trailing_commas=False)
@@ -203,4 +253,4 @@ if __name__ == '__main__':
     #     # Save data
     #     dta.to_csv(NEW_OUT_FNAME_CPL, mode='a', sep='\t',
     #                encoding='utf-8', index=False, header=False)
-    print('DONE')
+    print("DONE")

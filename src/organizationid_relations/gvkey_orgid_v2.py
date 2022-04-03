@@ -366,14 +366,14 @@ if __name__ == "__main__":
     )
     my_header = list(organizationid_gvkey_df.columns.values)
     create_out_file(
-        pl.Path.joinpath(out_path, "gvkey_organizationid.csv"), my_header
+        pl.Path.joinpath(out_path, "organizationid_relations.csv"), my_header
     )
     save_to_csv_file(
         organizationid_gvkey_df,
-        pl.Path.joinpath(out_path, "gvkey_organizationid.csv"),
+        pl.Path.joinpath(out_path, "organizationid_relations.csv"),
     )
     organizationid_gvkey_df.to_stata(
-        pl.Path.joinpath(out_path, "gvkey_organizationid.dta"),
+        pl.Path.joinpath(out_path, "organizationid_relations.dta"),
         write_index=False,
         data_label="Linktable between Refinitiv's OrganizationID & gvkey",
         variable_labels={
@@ -384,13 +384,13 @@ if __name__ == "__main__":
     )
     save_to_parquet_file(
         organizationid_gvkey_df,
-        pl.Path.joinpath(out_path, "gvkey_organizationid.parquet.brotli"),
+        pl.Path.joinpath(out_path, "organizationid_relations.parquet.brotli"),
         compression="brotli",
     )
     print(
         "File "
         + "--"
-        + str(pl.Path.joinpath(out_path, "gvkey_organizationid.parquet.brotli"))
+        + str(pl.Path.joinpath(out_path, "organizationid_relations.parquet.brotli"))
         + "--"
         + " is saved."
     )
