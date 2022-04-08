@@ -151,6 +151,7 @@ if __name__ == "__main__":
         name = f"instrument_data_{key_name}_v2.csv"
         dict_of_df[key_name] = own.read_csv_file(
             pl.Path.joinpath(raw_path, name),
+            parse_dates=["FirstTradeDate", "RetireDate"]
         )
         # dict_of_df[key_name].columns = dict_of_df[key_name].columns.str.lower()
         # print(str(key_name) + " " + str(len(dict_of_df[key_name])))
@@ -173,201 +174,36 @@ if __name__ == "__main__":
     my_header = list(dta.columns.values)
     dta = dta.sort_values(my_header)
     dta = dta.drop_duplicates(subset=my_header[1:])
-
     sbb = dta[dta.OrganizationID == "5044034256"]
     # quoteid_ric = dta[["OrganizationID", "InstrumentID", "QuoteID", "RIC"]]
-    quoteid_ric = dta[["OrganizationID", "InstrumentID", "QuoteID"]]
-    quoteid_ric = dta[["OrganizationID", "InstrumentID"]]
+    # quoteid_ric = dta[["OrganizationID", "InstrumentID", "QuoteID"]]
+    quoteid_ric = dta[["InstrumentID", "FirstTradeDate", "RetireDate"]]
     # quoteid_ric = quoteid_ric.dropna(how="any", subset=["OrganizationID", "InstrumentID", "QuoteID"])
-    quoteid_ric = quoteid_ric.dropna(how="any", subset=["OrganizationID", "InstrumentID"])
+    quoteid_ric = quoteid_ric.dropna(how="any", subset=["InstrumentID"])
+    # quoteid_ric["FirstTradeDate"] = quoteid_ric["FirstTradeDate"].fillna(quoteid_ric.groupby("InstrumentID")["FirstTradeDate"].transform("min"))
+    quoteid_ric["FirstTradeDate"] = quoteid_ric["FirstTradeDate"].fillna("1999-12-31")
+    quoteid_ric["FirstTradeDate"] = quoteid_ric.groupby("InstrumentID").FirstTradeDate.transform("min")
+    quoteid_ric["RetireDate"] = quoteid_ric["RetireDate"].fillna("2021-12-31")
+    quoteid_ric["RetireDate"] = quoteid_ric.groupby("InstrumentID").RetireDate.transform("max")
+    quoteid_ric["RetireDate"] = quoteid_ric.groupby("InstrumentID").RetireDate.transform("max")
+    quoteid_ric = quoteid_ric[quoteid_ric.FirstTradeDate < quoteid_ric.RetireDate]
+    quoteid_ric["RetireDate"] = quoteid_ric["RetireDate"].mask(quoteid_ric["RetireDate"] > "2021-12-31", "2021-12-31")
+    quoteid_ric["FirstTradeDate"] = quoteid_ric["FirstTradeDate"].mask(quoteid_ric["FirstTradeDate"] < "1999-12-31", "1999-12-31")
+    quoteid_ric.rename({"FirstTradeDate": "SDate", "RetireDate": "EDate"}, axis=1, inplace=True)
     quoteid_ric = quoteid_ric.sort_values("InstrumentID")
     quoteid_ric.drop_duplicates(inplace=True)
+    quoteid_ric["SDate"] = quoteid_ric["SDate"].dt.strftime('%Y-%m-%d')
+    quoteid_ric["EDate"] = quoteid_ric["EDate"].dt.strftime('%Y-%m-%d')
+    test_dict = quoteid_ric.to_dict("records")
+    print(test_dict)
 
     # my_header = list(dta.columns.values)
     # sbb = sbb.drop_duplicates(subset=my_header[1:])
-    print(sbb)
-    print(len(dta))
-    print(dta[dta.RIC == "EFFN.ST"])
-    print(dta[dta.InstrumentID == "15629715433"])
+    # print(sbb)
+    # print(dta[dta.RIC == "EFFN.ST"])
+    # print(dta[dta.InstrumentID == "15629715433"])
+    print(quoteid_ric.info(verbose=True))
 
-    # isin_eikon = ipo_ric(isin_eikon)
-    # isin_eikon = delisted_ric(isin_eikon)
-    # isin_eikon = pd.merge(isin_eikon, organizationid, how="inner", on=["ric"])
-    # isin_eikon = isin_eikon.drop("ric", axis=1)
-    # isin_eikon = isin_eikon.drop_duplicates()
-    #
-    # sedol_eikon = dict_of_df["sedol"]
-    # sedol_eikon = ipo_ric(sedol_eikon)
-    # sedol_eikon = delisted_ric(sedol_eikon)
-    # sedol_eikon = pd.merge(sedol_eikon, organizationid, how="inner", on=["ric"])
-    # sedol_eikon = sedol_eikon.drop("ric", axis=1)
-    # sedol_eikon = sedol_eikon.drop_duplicates()
-    #
-    # cusip_eikon = dict_of_df["cusip"]
-    # cusip_eikon = ipo_ric(cusip_eikon)
-    # cusip_eikon = delisted_ric(cusip_eikon)
-    # cusip_eikon = pd.merge(cusip_eikon, organizationid, how="inner", on=["ric"])
-    # cusip_eikon = cusip_eikon.drop("ric", axis=1)
-    # cusip_eikon = cusip_eikon.drop_duplicates()
-    #
-    # organizationid_unique = organizationid["organizationid"]
-    # organizationid_unique = organizationid_unique.drop_duplicates()
-    #
-    # # ric = dict_of_df['ric']
-    # # ric = ric.drop_duplicates()
-    #
-    # # Read Compustat data
-    # print("Reading the Compustat files")
-    # stata_files = ["isin", "sedol", "cusip"]
-    # dict_of_df = {}
-    # for file in stata_files:
-    #     key_name = file
-    #     name = "gvkey_iid_" + key_name + "_date_range.dta"
-    #     dict_of_df[key_name] = pd.read_stata(
-    #         pl.Path.joinpath(box_data_path, name), preserve_dtypes=True
-    #     )
-    #     # print(str(key_name) + ' ' + str(len(dict_of_df[key_name])))
-    #     my_header = list(dict_of_df[key_name].columns.values)
-    #     # print(my_header)
-    #     # print(dict_of_df[key_name].dtypes)
-    # # Load Compustat's name file too
-    # gvkey_names = pd.read_stata(
-    #     pl.Path.joinpath(box_data_path, "g_names.dta"), preserve_dtypes=True
-    # )
-    # gvkey_swe_stata = pd.read_stata(
-    #     pl.Path.joinpath(raw_path, "gvkey_swe.dta"), preserve_dtypes=True
-    # )
-    #
-    # # Prepare the Compustat dataframes for merger
-    # isin_stata = dict_of_df["isin"]
-    # isin_stata = isin_stata[["gvkey", "isin"]]
-    # tmp = gvkey_names[["gvkey", "isin"]]
-    # isin_stata = isin_stata.append([tmp])
-    # isin_stata = isin_stata.dropna(how="any", subset=["gvkey", "isin"])
-    # isin_stata = isin_stata.drop_duplicates()
-    #
-    # sedol_stata = dict_of_df["sedol"]
-    # sedol_stata = sedol_stata[["gvkey", "sedol"]]
-    # tmp = gvkey_names[["gvkey", "sedol"]]
-    # sedol_stata = sedol_stata.append([tmp])
-    # sedol_stata = sedol_stata.dropna(how="any", subset=["gvkey", "sedol"])
-    # sedol_stata = sedol_stata.drop_duplicates()
-    #
-    # cusip_stata = dict_of_df["cusip"]
-    # cusip_stata = cusip_stata[["gvkey", "cusip"]]
-    # tmp = gvkey_names[["gvkey", "cusip"]]
-    # cusip_stata = cusip_stata.append([tmp])
-    # cusip_stata = cusip_stata.dropna(how="any", subset=["gvkey", "cusip"])
-    # cusip_stata = cusip_stata.drop_duplicates()
-    #
-    # gvkey_all = isin_stata[["gvkey"]]
-    # tmp = sedol_stata[["gvkey"]]
-    # gvkey_all = gvkey_all.append([tmp])
-    # tmp = cusip_stata[["gvkey"]]
-    # gvkey_all = gvkey_all.append([tmp])
-    # gvkey_all = gvkey_all.drop_duplicates()  # All gvkey in Compustat
-    #
-    # # Merge Eikon and Compustat, keep the pairs 'gvkey' and 'ric'
-    # print("Connect Eikon and Compustat firm identification keys")
-    # isin_df = pd.merge(isin_eikon, isin_stata, how="inner", on=["isin"])
-    # isin_df = isin_df[["organizationid", "gvkey"]]
-    # isin_df = isin_df.drop_duplicates()
-    #
-    # sedol_df = pd.merge(sedol_eikon, sedol_stata, how="inner", on=["sedol"])
-    # sedol_df = sedol_df[["organizationid", "gvkey"]]
-    # sedol_df = sedol_df.drop_duplicates()
-    #
-    # cusip_df = pd.merge(cusip_eikon, cusip_stata, how="inner", on=["cusip"])
-    # cusip_df = cusip_df[["organizationid", "gvkey"]]
-    # cusip_df = cusip_df.drop_duplicates()
-    #
-    # # Append files to a long df with OrganizationID & gvkey
-    # # Sort, drop NaN and duplicates
-    # organizationid_gvkey_df = isin_df.append(
-    #     [sedol_df, cusip_df, gvkey_orgid_manual]
-    # )
-    # organizationid_gvkey_df = organizationid_gvkey_df.sort_values(
-    #     by=["organizationid", "gvkey"]
-    # )
-    # organizationid_gvkey_df = organizationid_gvkey_df.dropna(
-    #     how="any", subset=["organizationid", "gvkey"]
-    # )
-    # organizationid_gvkey_df = organizationid_gvkey_df.drop_duplicates()
-    # # my_header = list(organizationid_gvkey_df.columns.values)
-    # # print(my_header)
-    #
-    # # With above, main task is done. Below I identify gvkey not found and
-    # # organizationid not found
-    #
-    # # Identify missing gvkey
-    # # Subset gvkey_names to be on the 'modern' period (year 2000-)
-    # gvkey_modern = gvkey_names[gvkey_names["year2"] >= 2000]
-    # gvkey_modern = gvkey_modern.dropna(
-    #     how="all", subset=["cusip", "sedol", "isin"]
-    # )
-    # gvkey_modern = gvkey_modern[["gvkey"]]
-    # gvkey_modern = gvkey_modern.drop_duplicates()
-    # gvkey_modern["match"] = "T"
-    #
-    # gvkey_match = organizationid_gvkey_df[["gvkey"]]
-    # gvkey_match = gvkey_match.drop_duplicates()
-    # gvkey_match["match"] = "T"
-    #
-    # gvkey_miss = pd.merge(gvkey_modern, gvkey_match, how="left", on=["gvkey"])
-    # gvkey_miss = gvkey_miss[gvkey_miss.isnull().values.any(axis=1)]
-    # gvkey_miss = gvkey_miss[["gvkey"]]
-    # gvkey_miss = gvkey_miss.drop_duplicates()
-    #
-    # # Subset gvkey_miss to Swedish incorporated firms
-    # gvkey_swe = pd.merge(gvkey_names, gvkey_miss, how="inner", on=["gvkey"])
-    # gvkey_swe = gvkey_swe[gvkey_swe["fic"] == "SWE"]
-    # gvkey_swe = gvkey_swe.dropna(how="all", subset=["cusip", "sedol", "isin"])
-    #
-    # # print(len(gvkey_miss))
-    # # r_gvkey = len(gvkey_miss) / len(gvkey_modern)
-    # # print(r_gvkey)
-    # # print(len(gvkey_swe))
-    # # print(gvkey_swe)
-    #
-    # # Identify missing OrganizationID
-    # organizationid_match = organizationid_gvkey_df["organizationid"]
-    # organizationid_match = organizationid_match.drop_duplicates()
-    #
-    # r_gvkey = len(organizationid_unique) - len(organizationid_match)
-    # # print(r_gvkey)
-    # # r_gvkey = len(organizationid_match) / len(organizationid_all)
-    # # print(r_gvkey)
-    #
-    # # print(len(organizationid_match))
-    #
-    # # Save data
-    # isin_stata = isin_stata[["isin"]]
-    # isin_stata = isin_stata.drop_duplicates()
-    # my_header = list(isin_stata.columns.values)
-    # own.create_out_file(pl.Path.joinpath(out_path, "isin_stata.csv"), my_header)
-    # own.save_to_csv_file(isin_stata, pl.Path.joinpath(out_path, "isin_stata.csv"))
-    #
-    # sedol_stata = sedol_stata[["sedol"]]
-    # sedol_stata = sedol_stata.drop_duplicates()
-    # my_header = list(sedol_stata.columns.values)
-    # create_out_file(pl.Path.joinpath(out_path, "sedol_stata.csv"), my_header)
-    # save_to_csv_file(sedol_stata, pl.Path.joinpath(out_path, "sedol_stata.csv"))
-    #
-    # cusip_stata = cusip_stata[["cusip"]]
-    # cusip_stata = cusip_stata.drop_duplicates()
-    # my_header = list(cusip_stata.columns.values)
-    # create_out_file(pl.Path.joinpath(out_path, "cusip_stata.csv"), my_header)
-    # save_to_csv_file(cusip_stata, pl.Path.joinpath(out_path, "cusip_stata.csv"))
-    #
-    # organizationid_gvkey_df = organizationid_gvkey_df.rename(
-    #     columns={
-    #         "organizationid": "OrganizationID",
-    #     }
-    # )
-    # my_header = list(organizationid_gvkey_df.columns.values)
-    # create_out_file(
-    #     pl.Path.joinpath(out_path, "organizationid_relations.csv"), my_header
-    # )
     # save_to_csv_file(
     #     organizationid_gvkey_df,
     #     pl.Path.joinpath(out_path, "organizationid_relations.csv"),
@@ -400,11 +236,6 @@ if __name__ == "__main__":
     #     + " rows, and has the following header:"
     # )
     # print(my_header)
-    #
-    # # File below outputs rows with missing organizationid
-    # my_header = list(gvkey_swe.columns.values)
-    # create_out_file(pl.Path.joinpath(out_path, "gvkey_swe.csv"), my_header)
     save_to_csv_file(sbb, pl.Path.joinpath(out_path, "sbb.csv"), mode="w", header=True)
     save_to_csv_file(quoteid_ric, pl.Path.joinpath(out_path, "quoteid_ric.csv"), mode="w", header=True)
-    # sbb.to_csv(pl.Path.joinpath(out_path, "sbb.csv"), header=True)
     print("Done")
