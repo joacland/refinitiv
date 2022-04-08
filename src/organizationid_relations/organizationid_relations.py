@@ -128,17 +128,9 @@ out_path = proj_path.joinpath("out")
 
 if __name__ == "__main__":
     """
-    This script identifies the association between Eikon's 'OrganizationID' and
-    Compustat's equivalent variable 'gvkey'.
+    This script collates all relations between OrganizationID and InstrumentID, QuoteID, RIC, ISIN, and SEDOL that I can find.
     """
-    # Load manually collected relations between OrganizationID and gvkey
-    # gvkey_orgid_manual = own.read_csv_file(
-    #     pl.Path.joinpath(raw_path, "gvkey_organizationid_manual.csv")
-    # )
-    # gvkey_orgid_manual = gvkey_orgid_manual[["organizationid", "gvkey"]]
-
-    # Read Eikon's data and add OrganizationID to ISIN, SEDOL, CUSIP
-    print("Reading the Eikon files")
+    # print("Reading the Eikon files")
     eikon_files = [
         "ric",
         "isin",
@@ -147,22 +139,20 @@ if __name__ == "__main__":
         "instrumentid",
         "organizationid",
     ]  # Missing cusip
-    eikon_files = [
-        "ric",
-        "isin",
-        "sedol",
-        "quoteid",
-        "instrumentid",
-        "organizationid",
-    ]  # Missing cusip
+    ids = [
+        "OrganizationID",
+        "UltimateParentID",
+        "InstrumentID",
+        "QuoteID"
+    ]
     dict_of_df = {}
     for file in eikon_files:
         key_name = file.lower()
         name = f"instrument_data_{key_name}_v2.csv"
         dict_of_df[key_name] = own.read_csv_file(
-            pl.Path.joinpath(raw_path, name)
+            pl.Path.joinpath(raw_path, name),
         )
-        dict_of_df[key_name].columns = dict_of_df[key_name].columns.str.lower()
+        # dict_of_df[key_name].columns = dict_of_df[key_name].columns.str.lower()
         # print(str(key_name) + " " + str(len(dict_of_df[key_name])))
         # print(dict_of_df[key_name].columns.values)
 
@@ -176,14 +166,29 @@ if __name__ == "__main__":
     organizationid_eikon = dict_of_df["organizationid"]
     frames = [ric_eikon, isin_eikon, sedol_eikon, quote_eikon, instrumentid_eikon, organizationid_eikon]
     dta = pd.concat(frames)
-    dta = dta.drop_duplicates()
-    print(dta.columns.values)
-    dta = dta.drop("instrument", axis=1)
-    print(dta.columns.values)
-    dta = dta.dropna(subset=["organizationid"])
-    print(dta.info)
-    print(dta.head())
-    print(dta.tail())
+    dta = dta.drop("Instrument", axis=1)
+    dta = dta.dropna(subset=["OrganizationID"])
+    for id in ids:
+        dta[id] = dta[id].str.replace(r"\.0", "", regex=True)  # Make sure vars don't appear as floats (with decimals)
+    my_header = list(dta.columns.values)
+    dta = dta.sort_values(my_header)
+    dta = dta.drop_duplicates(subset=my_header[1:])
+
+    sbb = dta[dta.OrganizationID == "5044034256"]
+    # quoteid_ric = dta[["OrganizationID", "InstrumentID", "QuoteID", "RIC"]]
+    quoteid_ric = dta[["OrganizationID", "InstrumentID", "QuoteID"]]
+    quoteid_ric = dta[["OrganizationID", "InstrumentID"]]
+    # quoteid_ric = quoteid_ric.dropna(how="any", subset=["OrganizationID", "InstrumentID", "QuoteID"])
+    quoteid_ric = quoteid_ric.dropna(how="any", subset=["OrganizationID", "InstrumentID"])
+    quoteid_ric = quoteid_ric.sort_values("InstrumentID")
+    quoteid_ric.drop_duplicates(inplace=True)
+
+    # my_header = list(dta.columns.values)
+    # sbb = sbb.drop_duplicates(subset=my_header[1:])
+    print(sbb)
+    print(len(dta))
+    print(dta[dta.RIC == "EFFN.ST"])
+    print(dta[dta.InstrumentID == "15629715433"])
 
     # isin_eikon = ipo_ric(isin_eikon)
     # isin_eikon = delisted_ric(isin_eikon)
@@ -399,5 +404,7 @@ if __name__ == "__main__":
     # # File below outputs rows with missing organizationid
     # my_header = list(gvkey_swe.columns.values)
     # create_out_file(pl.Path.joinpath(out_path, "gvkey_swe.csv"), my_header)
-    # save_to_csv_file(gvkey_swe, pl.Path.joinpath(out_path, "gvkey_swe.csv"))
+    save_to_csv_file(sbb, pl.Path.joinpath(out_path, "sbb.csv"), mode="w", header=True)
+    save_to_csv_file(quoteid_ric, pl.Path.joinpath(out_path, "quoteid_ric.csv"), mode="w", header=True)
+    # sbb.to_csv(pl.Path.joinpath(out_path, "sbb.csv"), header=True)
     print("Done")
