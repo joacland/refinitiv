@@ -115,19 +115,16 @@ def ipo_ric(in_df):
 
 # PATHS
 # Project Directory
-SOURCE_FILE = pl.Path(r"D:\tmp\quoteid_all.csv")
-proj_path = pl.Path(r"D:\\")
-# proj_path = pl.Path.home().joinpath("Documents", "research", "refinitiv")
+proj_path = pl.Path.home().joinpath("Documents", "research", "refinitiv")
 
 # Path to where I store raw data pertinent to the project
-raw_path = proj_path
-# raw_path = proj_path.joinpath("tmp")
+raw_path = proj_path.joinpath("raw")
 
 # Path to my Box Account data/ folder
 # box_data_path = pl.Path.home().joinpath("box", "data")
 
 # Path to where I output data
-out_path = proj_path.joinpath("tmp")
+out_path = proj_path.joinpath("out")
 
 if __name__ == "__main__":
     """
@@ -154,6 +151,7 @@ if __name__ == "__main__":
         "ric",
         "isin",
         "sedol",
+        "quoteid",
         "instrumentid",
         "organizationid",
     ]  # Missing cusip
@@ -165,17 +163,27 @@ if __name__ == "__main__":
             pl.Path.joinpath(raw_path, name)
         )
         dict_of_df[key_name].columns = dict_of_df[key_name].columns.str.lower()
-        print(str(key_name) + " " + str(len(dict_of_df[key_name])))
-        print(dict_of_df[key_name].columns.values)
+        # print(str(key_name) + " " + str(len(dict_of_df[key_name])))
+        # print(dict_of_df[key_name].columns.values)
 
     ric_eikon = dict_of_df["ric"]
     # print(ric_eikon.head())
     isin_eikon = dict_of_df["isin"]
     sedol_eikon = dict_of_df["sedol"]
     # cusip_eikon = dict_of_df["cusip"]
-    # quote_eikon = dict_of_df["quoteid"]
+    quote_eikon = dict_of_df["quoteid"]
     instrumentid_eikon = dict_of_df["instrumentid"]
     organizationid_eikon = dict_of_df["organizationid"]
+    frames = [ric_eikon, isin_eikon, sedol_eikon, quote_eikon, instrumentid_eikon, organizationid_eikon]
+    dta = pd.concat(frames)
+    dta = dta.drop_duplicates()
+    print(dta.columns.values)
+    dta = dta.drop("instrument", axis=1)
+    print(dta.columns.values)
+    dta = dta.dropna(subset=["organizationid"])
+    print(dta.info)
+    print(dta.head())
+    print(dta.tail())
 
     # isin_eikon = ipo_ric(isin_eikon)
     # isin_eikon = delisted_ric(isin_eikon)
