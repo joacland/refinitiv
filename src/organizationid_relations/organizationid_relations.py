@@ -172,70 +172,50 @@ if __name__ == "__main__":
     for id in ids:
         dta[id] = dta[id].str.replace(r"\.0", "", regex=True)  # Make sure vars don't appear as floats (with decimals)
     my_header = list(dta.columns.values)
+    print(my_header)
     dta = dta.sort_values(my_header)
     dta = dta.drop_duplicates(subset=my_header[1:])
-    sbb = dta[dta.OrganizationID == "5044034256"]
-    # quoteid_ric = dta[["OrganizationID", "InstrumentID", "QuoteID", "RIC"]]
-    # quoteid_ric = dta[["OrganizationID", "InstrumentID", "QuoteID"]]
-    quoteid_ric = dta[["InstrumentID", "FirstTradeDate", "RetireDate"]]
-    # quoteid_ric = quoteid_ric.dropna(how="any", subset=["OrganizationID", "InstrumentID", "QuoteID"])
-    quoteid_ric = quoteid_ric.dropna(how="any", subset=["InstrumentID"])
-    # quoteid_ric["FirstTradeDate"] = quoteid_ric["FirstTradeDate"].fillna(quoteid_ric.groupby("InstrumentID")["FirstTradeDate"].transform("min"))
-    quoteid_ric["FirstTradeDate"] = quoteid_ric["FirstTradeDate"].fillna("1999-12-31")
-    quoteid_ric["FirstTradeDate"] = quoteid_ric.groupby("InstrumentID").FirstTradeDate.transform("min")
-    quoteid_ric["RetireDate"] = quoteid_ric["RetireDate"].fillna("2021-12-31")
-    quoteid_ric["RetireDate"] = quoteid_ric.groupby("InstrumentID").RetireDate.transform("max")
-    quoteid_ric["RetireDate"] = quoteid_ric.groupby("InstrumentID").RetireDate.transform("max")
-    quoteid_ric = quoteid_ric[quoteid_ric.FirstTradeDate < quoteid_ric.RetireDate]
-    quoteid_ric["RetireDate"] = quoteid_ric["RetireDate"].mask(quoteid_ric["RetireDate"] > "2021-12-31", "2021-12-31")
-    quoteid_ric["FirstTradeDate"] = quoteid_ric["FirstTradeDate"].mask(quoteid_ric["FirstTradeDate"] < "1999-12-31", "1999-12-31")
-    quoteid_ric.rename({"FirstTradeDate": "SDate", "RetireDate": "EDate"}, axis=1, inplace=True)
-    quoteid_ric = quoteid_ric.sort_values("InstrumentID")
-    quoteid_ric.drop_duplicates(inplace=True)
-    quoteid_ric["SDate"] = quoteid_ric["SDate"].dt.strftime('%Y-%m-%d')
-    quoteid_ric["EDate"] = quoteid_ric["EDate"].dt.strftime('%Y-%m-%d')
-    test_dict = quoteid_ric.to_dict("records")
-    print(test_dict)
 
-    # my_header = list(dta.columns.values)
-    # sbb = sbb.drop_duplicates(subset=my_header[1:])
+    # sbb = dta[dta.OrganizationID == "5044034256"]
+    # quoteid_ric = dta[["InstrumentID", "FirstTradeDate", "RetireDate"]]
+    # quoteid_ric = quoteid_ric.dropna(how="any", subset=["InstrumentID"])
+    # quoteid_ric["FirstTradeDate"] = quoteid_ric["FirstTradeDate"].fillna("1999-12-31")
+    # quoteid_ric["FirstTradeDate"] = quoteid_ric.groupby("InstrumentID").FirstTradeDate.transform("min")
+    # quoteid_ric["RetireDate"] = quoteid_ric["RetireDate"].fillna("2021-12-31")
+    # quoteid_ric["RetireDate"] = quoteid_ric.groupby("InstrumentID").RetireDate.transform("max")
+    # quoteid_ric = quoteid_ric[quoteid_ric.FirstTradeDate < quoteid_ric.RetireDate]
+    # quoteid_ric["RetireDate"] = quoteid_ric["RetireDate"].mask(quoteid_ric["RetireDate"] > "2021-12-31", "2021-12-31")
+    # quoteid_ric["FirstTradeDate"] = quoteid_ric["FirstTradeDate"].mask(quoteid_ric["FirstTradeDate"] < "1999-12-31", "1999-12-31")
+    # quoteid_ric.rename({"FirstTradeDate": "SDate", "RetireDate": "EDate"}, axis=1, inplace=True)
+    # quoteid_ric = quoteid_ric.sort_values("InstrumentID")
+    # quoteid_ric.drop_duplicates(inplace=True)
+    # quoteid_ric["SDate"] = quoteid_ric["SDate"].dt.strftime("%Y-%m-%d")
+    # quoteid_ric["EDate"] = quoteid_ric["EDate"].dt.strftime("%Y-%m-%d")
+    # quoteid_ric.set_index("InstrumentID")
+    # test_dict = quoteid_ric.to_dict("index")
+    # print(test_dict)
+
     # print(sbb)
     # print(dta[dta.RIC == "EFFN.ST"])
     # print(dta[dta.InstrumentID == "15629715433"])
-    print(quoteid_ric.info(verbose=True))
+    # print(quoteid_ric.info(verbose=True))
 
-    # save_to_csv_file(
-    #     organizationid_gvkey_df,
-    #     pl.Path.joinpath(out_path, "organizationid_relations.csv"),
-    # )
-    # organizationid_gvkey_df.to_stata(
-    #     pl.Path.joinpath(out_path, "organizationid_relations.dta"),
-    #     write_index=False,
-    #     data_label="Linktable between Refinitiv's OrganizationID & gvkey",
-    #     variable_labels={
-    #         "OrganizationID": "TR.OrganizationID in Refinitiv",
-    #         "gvkey": "Compustat's gvkey",
-    #     },
-    #     version=119,
-    # )
-    # save_to_parquet_file(
-    #     organizationid_gvkey_df,
-    #     pl.Path.joinpath(out_path, "organizationid_relations.parquet.brotli"),
-    #     compression="brotli",
-    # )
-    # print(
-    #     "File "
-    #     + "--"
-    #     + str(pl.Path.joinpath(out_path, "organizationid_relations.parquet.brotli"))
-    #     + "--"
-    #     + " is saved."
-    # )
-    # print(
-    #     "It has "
-    #     + str(len(organizationid_gvkey_df))
-    #     + " rows, and has the following header:"
-    # )
-    # print(my_header)
-    save_to_csv_file(sbb, pl.Path.joinpath(out_path, "sbb.csv"), mode="w", header=True)
-    save_to_csv_file(quoteid_ric, pl.Path.joinpath(out_path, "quoteid_ric.csv"), mode="w", header=True)
+    dta.to_stata(
+        pl.Path.joinpath(out_path, "refinitiv_relations.dta"),
+        write_index=False,
+        data_label="Linktable between Refinitiv's various ID variables",
+        variable_labels={
+            "OrganizationID": "TR.OrganizationID in Refinitiv",
+            "UltimateParentID": "TR.UltimateParentID",
+            "InstrumentID": "TR.InstrumentID",
+            "QuoteID": "TR.QuoteID"
+        },
+        version=119,
+    )
+    save_to_parquet_file(
+        dta,
+        pl.Path.joinpath(out_path, "refinitiv_relations.parquet.brotli"),
+        compression="brotli",
+    )
+    save_to_csv_file(dta, pl.Path.joinpath(out_path, "refinitiv_relations.csv"), mode="w", header=True)
     print("Done")
