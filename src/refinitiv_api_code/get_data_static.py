@@ -29,7 +29,9 @@ Out file path: Where to put the output file?
 import csv
 import os
 import sys
+import pathlib as pl
 import time  # For sleep functionality
+from src.my_functions import own_functions as own
 
 import eikon as ek  # the Eikon Python wrapper package
 import pandas as pd
@@ -45,17 +47,20 @@ import pandas as pd
 ek.set_timeout(300)  # Set Eikon's timeout to be 5 min.
 # insert APP_KEY from app key generator in eikon
 ek.set_app_key('1418cf51ee9046a3a767d6f8c871c1d3fcaf1953')
-SIZE = 7200  # Number of rows gathered per Eikon-loop
+SIZE = 6500  # Number of rows gathered per Eikon-loop
 
 # FROM WHICH VARIABLE?
-SYM_IN = 'RIC'
+# SYM_IN = "InstrumentID"
+SYM_IN = "QuoteID"
 # SYM_IN = 'OrganizationID'
 
 # WHICH VARIABLES TO RETRIEVE?
 # Instrument ID is the Instruments Permanent Identifier
 # QuoteID is Eikon's internal unique permanent quote identifier
-# OWN_VARIABLES = ['LegalEntityIdentifier']
-OWN_VARIABLES = ['InstrumentType', 'InstrumentTypeCode']
+# OWN_VARIABLES = ["IsPrimaryInstrument", "InstrumentTypeCode" ]  # For InstrumentID
+# OWN_VARIABLES = ["IsPrimaryQuote", "ExchangeName", "ExchangeCountryCode", "ShareClass", "RetireDate"]   # For QuoteID
+OWN_VARIABLES = ["ShareClass", "RetireDate"]   # For QuoteID
+# OWN_VARIABLES = ['IsPrimaryQuote']
 # OWN_VARIABLES = ['CommonName']
 # OWN_VARIABLES = ['OrganizationID', 'InstrumentID', 'QuoteID']
 # OWN_VARIABLES = ['IPODate', 'FirstTradeDate',
@@ -63,28 +68,24 @@ OWN_VARIABLES = ['InstrumentType', 'InstrumentTypeCode']
 # OWN_VARIABLES = ['OrganizationID', 'LegalEntityIdentifier']
 
 # Suffix to variables
-OWN_VAR_SUFFIX = 'TR.'
+OWN_VAR_SUFFIX = "TR."
 
 # WHERE IS, AND WHERE TO PUT, DATA?
 # SOURCE_PATH = 'C:\\Users\\joach\\OneDrive\\Dokument'
-SOURCE_PATH = 'G:\\'  # where is?
-OUT_PATH = 'G:\\'  # where to?
+proj_path = pl.Path(r"D:")
+raw_path = proj_path.joinpath("raw")
+OUT_PATH = 'D:\\'  # where to?
+out_path = proj_path.joinpath("out")
 
 # FILE NAMES OF DATA
-SOURCE_FNAME = "ric_cleaned"  # Name of source file
-# SOURCE_FNAME = "organizationid_cleaned_v2"  # Name of source file
-# SOURCE_FNAME = 'ric_all'  # Name of source file
-SOURCE_FNAME_SUFFIX = '.csv'  # Source file type
-
-# Source file name concatenation
-S_FNAME = SOURCE_FNAME + '.csv'
-SOURCE_FNAME_CPL = os.path.join(SOURCE_PATH, S_FNAME)
+name = "refinitiv_relations.csv"
+SOURCE_FILE = pl.Path.joinpath(raw_path, name)
 
 if __name__ == '__main__':
 
     # READ THE DATA FROM SOURCE FILE
     # File has header. make it into a list
-    own_list = pd.read_csv(SOURCE_FNAME_CPL, low_memory=False, dtype=str, sep="\t")
+    own_list = own.read_csv_file(SOURCE_FILE, dtype=str)
     # If SYM_IN is not own column, slice it and drop duplicates
     own_list = own_list[[SYM_IN]]
     # Find RIC-series delisted, strip delisting info, and append to original
@@ -95,6 +96,7 @@ if __name__ == '__main__':
         delisted_original = delisted_original.drop_duplicates()
         own_list = own_list.append(delisted_original)
     own_list = own_list.drop_duplicates()
+    own_list = own_list.dropna()
     own_list = own_list[SYM_IN].values.tolist()
 
     # RETRIEVE DATA FROM EIKON
@@ -105,7 +107,7 @@ if __name__ == '__main__':
 
         # Out file name concatenation
         O_FNAME = str(i).lower() + '.csv'
-        OUT_FNAME_CPL = os.path.join(OUT_PATH, O_FNAME)
+        OUT_FNAME_CPL = pl.Path.joinpath(out_path, O_FNAME)
 
         # Remove out-file, if it exist
         if os.path.exists(OUT_FNAME_CPL):
@@ -127,7 +129,7 @@ if __name__ == '__main__':
 
             # Have added a retry loop if error since sometimes there are
             # problems in the API-connection
-            for rec_attempts in range(5):
+            for rec_attempts in range(20):
                 try:
                     dta, err = ek.get_data(
                         instruments=own_list[line_start:line_end],
