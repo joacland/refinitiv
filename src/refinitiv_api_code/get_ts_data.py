@@ -2,13 +2,11 @@
 Created on 26 nov. 2021
 @author: joachim landström
 
-Based on a list of RICs
+This file retrieves time series data.
 
-Retrieves Eikon variables and saves them to a csv-file.
-The script generates two files, a -raw- file and a v2 file. The v2 file has data
-where empty rows, and possible duplicate rows, are discarded. Use v2.
+It's main use is to collect stock market data.
 
-Frequency is yearly
+
 
 Input required
 ---------------
@@ -39,13 +37,17 @@ pd.set_option("display.max_columns", None)
 pd.set_option("display.expand_frame_repr", False)
 pd.set_option("max_colwidth", None)
 
-# YEAR TYPE
-# YEAR_TYPE = "CY"  # CY or FY (Calendar Year or Fiscal Year)
 
-# SDate?
+# Financial instruments to retrieve data for
+share_code = ["ORD", "PRF", "FULLPAID", "PREFERRED", "ADR"]
+
+
+
+
+
 FIRST_YEAR = 1999
 # LAST_YEAR = datetime.now().year + 1
-LAST_YEAR = 2008
+LAST_YEAR = 2022
 
 SYM_IN = 'QuoteID'
 
@@ -53,13 +55,15 @@ SYM_IN = 'QuoteID'
 # SOURCE_FNAME = "ric_v2"  # Name of source file
 # SOURCE_FNAME = "organizationid_swe"  # Name of source file
 # SOURCE_FILE = pl.Path(r"F:\organizationid_test.csv")
-SOURCE_FILE = pl.Path(r"D:\tmp\organizationid_all.csv")
-OUT_FILE = pl.Path(r"D:\instrument_data2_organizationid.csv")  # Name of output file
-OUT_FILE2 = pl.Path(r"D:\instrument_data2_organizationid_v2.csv")  # Name of output file
 proj_path = pl.Path(r"D:")
 raw_path = proj_path.joinpath("raw")
-OUT_PATH = 'D:\\'  # where to?
 out_path = proj_path.joinpath("out")
+
+# FILE NAMES OF DATA
+name = "refinitiv_relations.csv"
+SOURCE_FILE = pl.Path.joinpath(raw_path, name)
+instrument_types = pl.Path.joinpath(raw_path, "instrumenttypecode.csv")
+
 
 if __name__ == "__main__":
 
@@ -89,7 +93,34 @@ if __name__ == "__main__":
     # File has header. make it into a list
     own_list = own.read_csv_file(SOURCE_FILE)
 
+    # Set SDate and EDate per instrument
+    first_date = "1999-01-01"
+    last_date = "2022-04-11"
+    first_last_dates = own_list.copy()
+    first_last_dates = first_last_dates[["OrganizationID", "QuoteID", "FirstTradeDate", "RetireDate"]]  # Get known dates
+    first_last_dates.drop_duplicates(inplace=True)
+
+
+    instrumentid = own_list["InstrumentID"]
+    instrumentid.dropna(inplace=True)
+    instrumentid.drop_duplicates(inplace=True)
+
+    instrumentcodes = own.read_csv_file(instrument_types)
+    instrumentcodes.dropna(inplace=True)
+    instrumentcodes.drop_duplicates(inplace=True)
+    instrumentcodes.merge(instrumentid, how="inner", on="InstrumentID")
+
+    instruments = pd.DataFrame()
+    for x in share_code:
+        dta = instrumentcodes[instrumentcodes.InstrumentTypeCode == x]
+        frames = [instruments, dta]
+        instruments = pd.concat(frames)
+
+
+
     own_list = own_list[[SYM_IN]]
+
+
     # own_list =pd.read_csv(SOURCE_FNAME_CPL, low_memory=False, dtype=str, sep="\t")
     if SYM_IN == "RIC":
         delisted = own_list[own_list.RIC.str.contains('\^[A-Z][0-9]{2}')]
@@ -98,6 +129,7 @@ if __name__ == "__main__":
         delisted_original = delisted_original.drop_duplicates()
         own_list = own_list.append(delisted_original)
     own_list = own_list.drop_duplicates()
+    own_list = own_list.dropna()
     own_list = own_list[SYM_IN].values.tolist()
 
     # File has no header. Make it into a list
