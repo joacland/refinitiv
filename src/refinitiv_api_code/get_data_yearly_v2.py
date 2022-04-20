@@ -45,7 +45,7 @@ pd.set_option("max_colwidth", None)
 # SDate?
 FIRST_YEAR = 1999
 # LAST_YEAR = datetime.now().year + 1
-LAST_YEAR = 2008
+LAST_YEAR = 2021
 
 SYM_IN = 'QuoteID'
 
