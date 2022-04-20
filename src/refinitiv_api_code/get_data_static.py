@@ -51,15 +51,16 @@ SIZE = 6500  # Number of rows gathered per Eikon-loop
 
 # FROM WHICH VARIABLE?
 # SYM_IN = "InstrumentID"
-SYM_IN = "QuoteID"
-# SYM_IN = 'OrganizationID'
+# SYM_IN = "QuoteID"
+SYM_IN = 'QuoteID'
 
 # WHICH VARIABLES TO RETRIEVE?
 # Instrument ID is the Instruments Permanent Identifier
 # QuoteID is Eikon's internal unique permanent quote identifier
 # OWN_VARIABLES = ["IsPrimaryInstrument", "InstrumentTypeCode" ]  # For InstrumentID
 # OWN_VARIABLES = ["IsPrimaryQuote", "ExchangeName", "ExchangeCountryCode", "ShareClass", "RetireDate"]   # For QuoteID
-OWN_VARIABLES = ["ShareClass", "RetireDate"]   # For QuoteID
+# OWN_VARIABLES = ["ShareClass", "RetireDate"]   # For QuoteID
+OWN_VARIABLES = ["PriceCloseDate"]
 # OWN_VARIABLES = ['IsPrimaryQuote']
 # OWN_VARIABLES = ['CommonName']
 # OWN_VARIABLES = ['OrganizationID', 'InstrumentID', 'QuoteID']
@@ -88,15 +89,16 @@ if __name__ == '__main__':
     own_list = own.read_csv_file(SOURCE_FILE, dtype=str)
     # If SYM_IN is not own column, slice it and drop duplicates
     own_list = own_list[[SYM_IN]]
+    own_list = own_list.dropna()
     # Find RIC-series delisted, strip delisting info, and append to original
     if SYM_IN == "RIC":
         delisted = own_list[own_list.RIC.str.contains('\^[A-Z][0-9]{2}')]
         delisted_original = delisted["RIC"].str.replace(r'\^[A-Z][0-9]{2}', '', regex=True, case=True)
         delisted_original = delisted_original.to_frame()
         delisted_original = delisted_original.drop_duplicates()
-        own_list = own_list.append(delisted_original)
+        # own_list = own_list.append(delisted_original)
+        own_list = pd.concat([own_list, delisted_original])
     own_list = own_list.drop_duplicates()
-    own_list = own_list.dropna()
     own_list = own_list[SYM_IN].values.tolist()
 
     # RETRIEVE DATA FROM EIKON
@@ -135,6 +137,9 @@ if __name__ == '__main__':
                         instruments=own_list[line_start:line_end],
                         fields=my_fields
                     )
+                    dta["PriceCloseDate"] = dta["PriceCloseDate"].dt.strftime(
+                        "%Y-%m-%d"
+                    )
                 except Exception as own_err:
                     print('Exception in attempt #' + str(rec_attempts) +
                           ': ' + str(own_err) + ', was raised. Trying again.')
@@ -162,10 +167,10 @@ if __name__ == '__main__':
         # Out-file name concatenation
         # Original file
         O_FNAME = str(o_var).lower() + '.csv'
-        OUT_FNAME_CPL = os.path.join(OUT_PATH, O_FNAME)
+        OUT_FNAME_CPL = pl.Path.joinpath(out_path, O_FNAME)
         # Revised file
         NEW_O_FNAME = str(o_var).lower() + '_v2' + '.csv'
-        NEW_OUT_FNAME_CPL = os.path.join(OUT_PATH, NEW_O_FNAME)
+        NEW_OUT_FNAME_CPL = pl.Path.joinpath(out_path, NEW_O_FNAME)
 
         # Remove revised out-file, if it exists
         if os.path.exists(NEW_OUT_FNAME_CPL):
