@@ -21,6 +21,7 @@ pd.set_option("max_colwidth", None)
 if __name__ == "__main__":
     # PROJECT DIRECTORY
     proj_path = pl.Path.home().joinpath("Documents", "research", "refinitiv")
+    box_path = pl.Path.home().joinpath("Box", "Data")
 
     # NAME OF SOURCE AND OUTPUT DIRECTORY (INSIDE PROJECT DIRECTORY FROM ABOVE)
     SOURCE_DIR = "raw"
