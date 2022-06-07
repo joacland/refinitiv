@@ -1,18 +1,29 @@
 """
-Created on 26 nov. 2021
-@author: joachim landström
+Created on 6-jun-2022
+@author: Joachim Landström
 
-This file retrieves time series data.
+This script retrieves the first (firstdt) and the last (lastdt) fiscal period end date that is available
+in Refinitiv Eikon.
 
-It's main use is to collect stock market data.
+The period end dates collected are from frequency FI (Financial Interim),
+FS (Financial Semi-Annual), FQ (Financial Quarterly) and FY (Financial Year)
+
+The OrganizationIDs are contingent on having InstrumentIDs (at least one) being
+Common Stock (ORD, FULLPAID) preference shares (PRF, PREFERRED) and for ADRs.
+
 
 
 
 Input required
 ---------------
-Source file name: Name of file with RICs with header -ric-
-Source file path: Where is the list
+Source file name: Name of file with OrganizationID (and InstrumentID)
+Source file path: Where is the file
+Out file name: Name of the outfile
 Out file path: Where to put the output file?
+Error file: Where to put OrganizationID that does not have any period end date data
+(could be from retrieval error - try again for this list)
+Date range: first_date & last_date for the retrieval instructions.
+
 """
 import csv
 import os
@@ -46,9 +57,6 @@ share_code = ["ORD", "PRF", "FULLPAID", "PREFERRED", "ADR"]
 SYM_IN = "OrganizationID"
 
 # FILE NAMES OF DATA
-# SOURCE_FNAME = "ric_v2"  # Name of source file
-# SOURCE_FNAME = "organizationid_swe"  # Name of source file
-# SOURCE_FILE = pl.Path(r"F:\organizationid_test.csv")
 proj_path = pl.Path(r"D:")
 download_path = pl.Path(r"C:\Users\joach\Downloads")
 raw_path = proj_path.joinpath("raw")
@@ -56,12 +64,10 @@ out_path = proj_path.joinpath("out")
 
 
 # FILE NAMES OF DATA
-name = "refinitiv_relations.csv"
-SOURCE_FILE = pl.Path.joinpath(raw_path, name)
+source_file_name = "refinitiv_relations.csv"
+SOURCE_FILE = pl.Path.joinpath(raw_path, source_file_name)
 instrument_types = pl.Path.joinpath(raw_path, "instrumenttypecode.csv")
-# ipo_dates = pl.Path.joinpath(raw_path, "ipodate_v2.csv")
-# priceclose_date = pl.Path.joinpath(raw_path, "priceclosedate_quoteid.csv")
-out_file = pl.Path.joinpath(out_path, "fundamentals_interim_date_range.csv")
+out_file = pl.Path.joinpath(out_path, "fundamentals_date_range.csv")
 err_file = pl.Path.joinpath(raw_path, "no_data_organizationid.csv")
 # test1 = pl.Path.joinpath(out_path, "test1.csv")
 # test2 = pl.Path.joinpath(out_path, "test2.csv")
@@ -73,26 +79,22 @@ last_date = "2022-06-06"
 
 if __name__ == "__main__":
 
-    # PREPARE FILES
-    # Remove output file, if it exist
-    # header = [
-    #     # SYM_IN,
-    #     "QuoteID",
-    #     "firstdt",
-    #     "lastdt",
-    #
-    # ]
-    #
-    # # Header to output file?
-    # with open(out_file, "w", encoding="UTF8", newline="") as f:
-    #     writer = csv.DictWriter(f, delimiter="\t", fieldnames=header)
-    #     writer.writeheader()
+    # PREPARE OUT/ERROR FILES
+    header_out = [SYM_IN, "firstdt", "lastdt"]
+    header_err = [SYM_IN]
+    if not pl.Path.exists(out_file):
+        with open(out_file, "w", encoding="UTF8", newline="") as f:
+            writer = csv.DictWriter(f, delimiter="\t", fieldnames=header_out)
+            writer.writeheader()
+    if not pl.Path.exists(err_file):
+        with open(err_file, "w", encoding="UTF8", newline="") as f:
+            writer = csv.DictWriter(f, delimiter="\t", fieldnames=header_err)
+            writer.writeheader()
 
     # READ THE DATA FROM SOURCE FILE
     # File has header. make it into a list
-    own_list = own.read_csv_file(
-        SOURCE_FILE, parse_dates=["FirstTradeDate", "RetireDate"]
-    )
+    own_list = own.read_csv_file(SOURCE_FILE)
+    own_list =own_list["OrganizationID", "InstrumentID"]
     own_list = own_list.dropna(
         how="any",
         subset=[
@@ -145,30 +147,22 @@ if __name__ == "__main__":
     own_list.drop_duplicates(subset=["OrganizationID"], inplace=True)
     own_list = own_list[SYM_IN].values.tolist()
 
-    # own_list = own_list["OrganizationID"]
-
     # RETRIEVE DATA FROM EIKON
     print(f"No of 'OrganizationID' to retrieve data for: {str(len(own_list))}.")
-    # dta_all = pd.DataFrame()  # Just so it is defined
-    counter = 0
     for line_start in range(0, len(own_list) + 1, SIZE):
         line_end = line_start + SIZE
         no_data = pd.DataFrame()
         my_list = own_list[line_start:line_end]
-        # sdate = date_dict[qte]["SDate"]  # Start date
-        # edate = date_dict[qte]["EDate"]  # End date
-        sdate = first_date
-        edate = last_date
 
         dta_all = pd.DataFrame()
-        for frequency in ["FI","FS","FQ","FY"]:
+        for frequency in ["FI", "FS", "FQ", "FY"]:
             print(f" + Lines: {str(line_start)}/{str(line_end)} for frequency {frequency}")
             # Period
             period = f"{frequency}0"  # E.g. FI0 as in current Fiscal Interim
             own_dict = {
                 "Period": period,
-                "SDate": sdate,
-                "Edate": edate,
+                "SDate": first_date,
+                "Edate": last_date,
                 "Frq": frequency,
                 # "Scale": scale,
                 # "ReportType": rep_type,
@@ -233,6 +227,7 @@ if __name__ == "__main__":
                 dta = dta.drop_duplicates()
             # Appends the retrieved Eikon data to out-file, unless empty dta
             if not dta.empty:
+                ## Create firstdt and lastdt
                 D_FORMAT = "%Y-%m-%d"  # E.g. 2020-12-31
                 dta["PeriodEndDate"] = pd.to_datetime(dta["PeriodEndDate"], format=D_FORMAT)
                 dta["firstdt"] = dta.groupby("OrganizationID")["PeriodEndDate"].transform("min")
@@ -244,7 +239,7 @@ if __name__ == "__main__":
                 my_header = list(dta.columns.values)
                 dta = dta.dropna(how="any", subset=my_header[1:])
                 dta = dta.drop_duplicates()
-                # print(f"     From {dta['firstdtf']} to {dta['lastdt']}")
+
                 # Only save data to file once per loop
                 if pl.Path.exists(out_file):
                     own.save_to_csv_file(dta, out_file)
