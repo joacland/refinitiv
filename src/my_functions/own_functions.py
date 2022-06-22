@@ -71,7 +71,7 @@ def create_source_path(source_dir, file):
 
     Return: The path to the source files.
     """
-    path = proj_path.joinpath(source_dir, file)
+    path = pl.Path.joinpath(source_dir, file)
     return path
 
 
@@ -290,7 +290,7 @@ def clean_data(in_df, idx, col_vars):
     col_vars: A list of column(s). NaN in all there cols lead to drop of the
     row. This is used in the second pass
     """
-    if len(df) > 0:
+    if len(in_df) > 0:
         try:
             # Drop if NaN in any of the index columns
             df = in_df.dropna(how="any", subset=idx)
