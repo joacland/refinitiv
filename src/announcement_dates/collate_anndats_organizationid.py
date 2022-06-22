@@ -20,8 +20,8 @@ and 'last_year'.
 Any deviation of the naming convention for the raw csv-files renders adj
 to the create_source_file_stem function.
 
-The key in the announcement dates files is RIC, but RIC is per financial
-instrument, whereas the announcement dates are per firm. This script
+The key in the announcement dates files is RIC, but RIC is per QuoteID,
+whereas the announcement dates are per firm. This script
 therefore replaces the RIC key with the Organization's Permanent ID.
 
 """
